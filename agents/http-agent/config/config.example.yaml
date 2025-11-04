@@ -1,0 +1,42 @@
+# HTTP Agent Configuration Example
+# Copy this file to config.yaml and configure your settings
+
+server:
+  port: "8080"
+  host: "0.0.0.0"
+  read_timeout: 30
+  write_timeout: 30
+
+llm:
+  # Provider: openai, anthropic, or ollama
+  provider: "openai"
+
+  # API Key (can also be set via OPENAI_API_KEY or ANTHROPIC_API_KEY env var)
+  api_key: ""
+
+  # Model to use
+  # OpenAI: gpt-4-turbo-preview, gpt-3.5-turbo
+  # Anthropic: claude-3-5-sonnet-20241022, claude-3-opus-20240229
+  model: "gpt-4-turbo-preview"
+
+  # Base URL for Ollama (if using local LLM)
+  base_url: "http://localhost:11434"
+
+http:
+  # Request timeout in seconds
+  timeout: 30
+
+  # Follow HTTP redirects
+  follow_redirects: true
+
+  # Maximum number of redirects to follow
+  max_redirects: 10
+
+  # Verify SSL certificates
+  verify_ssl: true
+
+  # Maximum response body size in bytes (10MB default)
+  max_response_size: 10485760
+
+  # Block requests to private IP addresses (security feature)
+  block_private_ips: true

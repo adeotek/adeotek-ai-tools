@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .header-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        #result-container {
+            display: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .status-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .status-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .status-error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .analysis-box {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-box {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 5px;
+            color: #991b1b;
+            margin: 15px 0;
+        }
+
+        .add-header-btn {
+            margin-top: 10px;
+        }
+
+        .headers-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .example-links {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 5px;
+        }
+
+        .example-links h4 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .example-link {
+            display: inline-block;
+            margin-right: 10px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .example-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Intelligent HTTP Agent</h1>
+            <p>Make HTTP requests and get AI-powered insights</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Request Form -->
+            <div class="card">
+                <h2>📤 Request Configuration</h2>
+                <form id="request-form">
+                    <div class="form-group">
+                        <label for="url">URL *</label>
+                        <input type="text" id="url" name="url" placeholder="https://api.example.com/endpoint" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="method">Method *</label>
+                        <select id="method" name="method">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                            <option value="HEAD">HEAD</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Headers (optional)</label>
+                        <div class="headers-container" id="headers-container">
+                            <!-- Headers will be added dynamically -->
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-small add-header-btn" onclick="addHeader()">+ Add Header</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="body">Request Body (optional)</label>
+                        <textarea id="body" name="body" rows="5" placeholder='{"key": "value"}'></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="prompt">AI Prompt (optional)</label>
+                        <textarea id="prompt" name="prompt" rows="3" placeholder="What is the response code? Is the API healthy?"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Send Request</button>
+                </form>
+
+                <div class="example-links">
+                    <h4>Quick Examples:</h4>
+                    <a href="#" class="example-link" onclick="loadExample('github'); return false;">GitHub API</a>
+                    <a href="#" class="example-link" onclick="loadExample('httpbin'); return false;">HTTPBin Test</a>
+                    <a href="#" class="example-link" onclick="loadExample('json'); return false;">JSON Placeholder</a>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="card" id="result-container">
+                <h2>📥 Response & Analysis</h2>
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Processing request...</p>
+                </div>
+                <div id="result-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let headerCount = 0;
+
+        function addHeader() {
+            headerCount++;
+            const container = document.getElementById('headers-container');
+            const row = document.createElement('div');
+            row.className = 'header-row';
+            row.id = `header-row-${headerCount}`;
+            row.innerHTML = `
+                <input type="text" placeholder="Header name" id="header-key-${headerCount}">
+                <input type="text" placeholder="Header value" id="header-value-${headerCount}">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeHeader(${headerCount})">×</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeHeader(id) {
+            const row = document.getElementById(`header-row-${id}`);
+            if (row) {
+                row.remove();
+            }
+        }
+
+        function loadExample(type) {
+            const examples = {
+                github: {
+                    url: 'https://api.github.com/users/github',
+                    method: 'GET',
+                    headers: {'Accept': 'application/json'},
+                    prompt: 'Tell me about this GitHub user'
+                },
+                httpbin: {
+                    url: 'https://httpbin.org/post',
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{"test": "data", "timestamp": "' + new Date().toISOString() + '"}',
+                    prompt: 'What did the server echo back?'
+                },
+                json: {
+                    url: 'https://jsonplaceholder.typicode.com/posts/1',
+                    method: 'GET',
+                    headers: {},
+                    prompt: 'Summarize this post'
+                }
+            };
+
+            const example = examples[type];
+            if (example) {
+                document.getElementById('url').value = example.url;
+                document.getElementById('method').value = example.method;
+                document.getElementById('body').value = example.body || '';
+                document.getElementById('prompt').value = example.prompt;
+
+                // Clear and add headers
+                document.getElementById('headers-container').innerHTML = '';
+                headerCount = 0;
+                for (const [key, value] of Object.entries(example.headers)) {
+                    addHeader();
+                    document.getElementById(`header-key-${headerCount}`).value = key;
+                    document.getElementById(`header-value-${headerCount}`).value = value;
+                }
+            }
+        }
+
+        document.getElementById('request-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const url = document.getElementById('url').value;
+            const method = document.getElementById('method').value;
+            const body = document.getElementById('body').value;
+            const prompt = document.getElementById('prompt').value;
+
+            // Collect headers
+            const headers = {};
+            const headerRows = document.querySelectorAll('.header-row');
+            headerRows.forEach(row => {
+                const keyInput = row.querySelector('input[id^="header-key-"]');
+                const valueInput = row.querySelector('input[id^="header-value-"]');
+                if (keyInput && valueInput && keyInput.value && valueInput.value) {
+                    headers[keyInput.value] = valueInput.value;
+                }
+            });
+
+            // Show loading
+            document.getElementById('result-container').style.display = 'block';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result-content').innerHTML = '';
+            document.getElementById('submit-btn').disabled = true;
+
+            try {
+                const response = await fetch('/api/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url, method, headers, body, prompt })
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submit-btn').disabled = false;
+
+                if (data.error) {
+                    document.getElementById('result-content').innerHTML = `
+                        <div class="error-box">
+                            <strong>Error:</strong> ${escapeHtml(data.error)}
+                        </div>
+                    `;
+                } else {
+                    displayResult(data);
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submit-btn').disabled = false;
+                document.getElementById('result-content').innerHTML = `
+                    <div class="error-box">
+                        <strong>Error:</strong> ${escapeHtml(error.message)}
+                    </div>
+                `;
+            }
+        });
+
+        function displayResult(data) {
+            const statusClass = `status-${data.status_color}`;
+            let html = `
+                <div class="info-grid">
+                    <div class="info-label">Status:</div>
+                    <div class="info-value">
+                        <span class="status-badge ${statusClass}">${data.response.status_code} ${data.response.status}</span>
+                    </div>
+
+                    <div class="info-label">Duration:</div>
+                    <div class="info-value">${escapeHtml(data.request_duration)}</div>
+
+                    <div class="info-label">Content-Type:</div>
+                    <div class="info-value">${escapeHtml(data.response.content_type)}</div>
+
+                    <div class="info-label">Size:</div>
+                    <div class="info-value">${formatBytes(data.response.content_length)}</div>
+                </div>
+
+                <h3 style="margin-top: 20px; color: #667eea;">🤖 AI Analysis</h3>
+                <div class="analysis-box">
+                    ${escapeHtml(data.analysis).replace(/\n/g, '<br>')}
+                </div>
+            `;
+
+            if (data.formatted_body) {
+                html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">📄 Response Body</h3>
+                    <div class="code-block">${escapeHtml(data.formatted_body)}</div>
+                `;
+            }
+
+            if (data.response.headers) {
+                html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">📋 Response Headers</h3>
+                    <div class="code-block">`;
+                for (const [key, value] of Object.entries(data.response.headers)) {
+                    html += `${escapeHtml(key)}: ${escapeHtml(Array.isArray(value) ? value.join(', ') : value)}\n`;
+                }
+                html += `</div>`;
+            }
+
+            document.getElementById('result-content').innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Add initial header row
+        addHeader();
+    </script>
+</body>
+</html>
