@@ -1,6 +1,6 @@
-# AI Tools Collection
+# AdeoTEK AI tools
 
-A comprehensive collection of production-ready AI tools, agents, and Model Context Protocol (MCP) servers for building intelligent applications.
+A collection of production-ready AI tools, agents, and Model Context Protocol (MCP) servers for building intelligent applications.
 
 ## Overview
 
