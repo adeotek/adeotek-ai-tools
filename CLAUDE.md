@@ -48,8 +48,11 @@ adeotek-ai-tools/
 - Web UI for easy interaction
 - Support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
 - AI-powered response analysis using multiple LLM providers
+- **DNS diagnostics**: Automatic hostname resolution, IP lookup, and timing (nslookup-like)
+- **SSL certificate inspection**: Certificate validation, expiration, CA details, and algorithm information
+- **Configurable SSL verification**: Per-request SSL verification toggle for self-signed certificates
 - JSON formatting, status code interpretation, performance analysis
-- Built-in security: SSRF protection, SSL verification, private IP blocking
+- Built-in security: SSRF protection, configurable SSL verification, private IP blocking
 - Docker deployment ready
 
 **Supported LLM Providers**:

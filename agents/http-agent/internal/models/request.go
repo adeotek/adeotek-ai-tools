@@ -4,11 +4,12 @@ import "time"
 
 // RequestConfig represents the configuration for an HTTP request
 type RequestConfig struct {
-	URL     string            `json:"url" binding:"required"`
-	Method  string            `json:"method" binding:"required"`
-	Headers map[string]string `json:"headers"`
-	Body    string            `json:"body"`
-	Prompt  string            `json:"prompt"`
+	URL       string            `json:"url" binding:"required"`
+	Method    string            `json:"method" binding:"required"`
+	Headers   map[string]string `json:"headers"`
+	Body      string            `json:"body"`
+	Prompt    string            `json:"prompt"`
+	VerifySSL *bool             `json:"verify_ssl"` // Optional, nil means use default
 }
 
 // Response represents an HTTP response with metadata
@@ -23,14 +24,43 @@ type Response struct {
 	Timestamp     time.Time           `json:"timestamp"`
 }
 
+// DNSDiagnostics contains DNS resolution information
+type DNSDiagnostics struct {
+	Hostname    string   `json:"hostname"`
+	IPAddresses []string `json:"ip_addresses"`
+	Error       string   `json:"error,omitempty"`
+	LookupTime  string   `json:"lookup_time"`
+}
+
+// SSLCertificateDiagnostics contains SSL/TLS certificate information
+type SSLCertificateDiagnostics struct {
+	Present         bool      `json:"present"`
+	Valid           bool      `json:"valid"`
+	Subject         string    `json:"subject"`
+	Issuer          string    `json:"issuer"`
+	NotBefore       time.Time `json:"not_before"`
+	NotAfter        time.Time `json:"not_after"`
+	ExpiresIn       string    `json:"expires_in"`
+	DNSNames        []string  `json:"dns_names"`
+	SignatureAlgo   string    `json:"signature_algorithm"`
+	PublicKeyAlgo   string    `json:"public_key_algorithm"`
+	Version         int       `json:"version"`
+	SerialNumber    string    `json:"serial_number"`
+	Error           string    `json:"error,omitempty"`
+	CertificateInfo string    `json:"certificate_info,omitempty"`
+}
+
 // AnalysisResult contains the AI-generated analysis of the request/response
 type AnalysisResult struct {
-	Request         *RequestConfig `json:"request"`
-	Response        *Response      `json:"response"`
-	Analysis        string         `json:"analysis"`
-	FormattedBody   string         `json:"formatted_body,omitempty"`
-	Error           string         `json:"error,omitempty"`
-	RequestDuration string         `json:"request_duration"`
+	Request          *RequestConfig             `json:"request"`
+	Response         *Response                  `json:"response"`
+	Analysis         string                     `json:"analysis"`
+	FormattedBody    string                     `json:"formatted_body,omitempty"`
+	Error            string                     `json:"error,omitempty"`
+	RequestDuration  string                     `json:"request_duration"`
+	DNSDiagnostics   *DNSDiagnostics            `json:"dns_diagnostics,omitempty"`
+	SSLDiagnostics   *SSLCertificateDiagnostics `json:"ssl_diagnostics,omitempty"`
+	SSLVerified      bool                       `json:"ssl_verified"`
 }
 
 // Config represents the application configuration

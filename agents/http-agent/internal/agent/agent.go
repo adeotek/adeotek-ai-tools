@@ -32,13 +32,28 @@ func NewHTTPAgent(httpConfig *models.HTTPConfig, llmConfig *models.LLMConfig) (*
 
 // Execute performs an HTTP request and analyzes it with AI
 func (a *HTTPAgent) Execute(ctx context.Context, reqConfig *models.RequestConfig) (*models.AnalysisResult, error) {
+	// Perform DNS diagnostics
+	dnsDiag := PerformDNSDiagnostics(reqConfig.URL)
+
+	// Perform SSL diagnostics
+	sslDiag := PerformSSLDiagnostics(reqConfig.URL)
+
+	// Determine if SSL verification was used
+	sslVerified := true
+	if reqConfig.VerifySSL != nil {
+		sslVerified = *reqConfig.VerifySSL
+	}
+
 	// Make the HTTP request
 	response, err := a.httpClient.MakeRequest(ctx, reqConfig)
 	if err != nil {
 		return &models.AnalysisResult{
-			Request:  reqConfig,
-			Response: nil,
-			Error:    err.Error(),
+			Request:        reqConfig,
+			Response:       nil,
+			Error:          err.Error(),
+			DNSDiagnostics: dnsDiag,
+			SSLDiagnostics: sslDiag,
+			SSLVerified:    sslVerified,
 		}, nil
 	}
 
@@ -59,6 +74,9 @@ func (a *HTTPAgent) Execute(ctx context.Context, reqConfig *models.RequestConfig
 		Analysis:        analysis,
 		FormattedBody:   formattedBody,
 		RequestDuration: FormatDuration(response.Duration),
+		DNSDiagnostics:  dnsDiag,
+		SSLDiagnostics:  sslDiag,
+		SSLVerified:     sslVerified,
 	}
 
 	return result, nil

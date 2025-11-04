@@ -97,11 +97,17 @@ func (h *Handler) handleRequest(c *gin.Context) {
 			"request_duration": result.RequestDuration,
 			"status_color":     agent.GetStatusCodeColor(result.Response.StatusCode),
 			"status_desc":      agent.GetStatusCodeDescription(result.Response.StatusCode),
+			"dns_diagnostics":  result.DNSDiagnostics,
+			"ssl_diagnostics":  result.SSLDiagnostics,
+			"ssl_verified":     result.SSLVerified,
 			"error":            result.Error,
 		})
 	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"error": result.Error,
+			"error":           result.Error,
+			"dns_diagnostics": result.DNSDiagnostics,
+			"ssl_diagnostics": result.SSLDiagnostics,
+			"ssl_verified":    result.SSLVerified,
 		})
 	}
 }

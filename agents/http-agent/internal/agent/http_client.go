@@ -90,6 +90,15 @@ func (c *HTTPClient) MakeRequest(ctx context.Context, reqConfig *models.RequestC
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
+	// Determine SSL verification setting (per-request overrides global)
+	verifySSL := c.config.VerifySSL
+	if reqConfig.VerifySSL != nil {
+		verifySSL = *reqConfig.VerifySSL
+	}
+
+	// Create a custom client for this request with the specified SSL verification
+	client := c.createCustomClient(verifySSL)
+
 	// Create request
 	var bodyReader io.Reader
 	if reqConfig.Body != "" {
@@ -112,7 +121,7 @@ func (c *HTTPClient) MakeRequest(ctx context.Context, reqConfig *models.RequestC
 	}
 
 	// Execute request
-	resp, err := c.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
@@ -204,6 +213,55 @@ func isPrivateIP(host string) bool {
 	}
 
 	return false
+}
+
+// createCustomClient creates an HTTP client with custom SSL verification settings
+func (c *HTTPClient) createCustomClient(verifySSL bool) *http.Client {
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: !verifySSL,
+		},
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := &net.Dialer{
+				Timeout:   time.Duration(c.config.Timeout) * time.Second,
+				KeepAlive: 30 * time.Second,
+			}
+
+			// Block private IPs if configured
+			if c.blockPrivateIPs {
+				host, _, err := net.SplitHostPort(addr)
+				if err != nil {
+					host = addr
+				}
+
+				if isPrivateIP(host) {
+					return nil, fmt.Errorf("access to private IP addresses is blocked")
+				}
+			}
+
+			return dialer.DialContext(ctx, network, addr)
+		},
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(c.config.Timeout) * time.Second,
+	}
+
+	if !c.config.FollowRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	} else if c.config.MaxRedirects > 0 {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= c.config.MaxRedirects {
+				return fmt.Errorf("stopped after %d redirects", c.config.MaxRedirects)
+			}
+			return nil
+		}
+	}
+
+	return client
 }
 
 // FormatDuration returns a human-readable duration string

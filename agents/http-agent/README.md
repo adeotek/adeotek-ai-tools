@@ -6,8 +6,10 @@ An AI-powered HTTP request tool that understands natural language prompts and pr
 
 - 🚀 **Natural Language Interface**: Ask questions about HTTP requests in plain English
 - 🌐 **Web UI**: Modern, responsive interface with real-time results
-- 🤖 **AI-Powered Analysis**: Uses OpenAI GPT or Anthropic Claude for intelligent response interpretation
-- 🔒 **Security First**: Built-in SSRF protection, SSL verification, and private IP blocking
+- 🤖 **AI-Powered Analysis**: Uses multiple LLM providers (OpenAI, Anthropic, Gemini, Ollama, LM Studio)
+- 🔍 **DNS Diagnostics**: Built-in DNS lookup with IP resolution and timing (nslookup-like functionality)
+- 🔒 **SSL Certificate Inspection**: Automatic certificate validation, expiration checking, and CA information
+- 🛡️ **Security First**: Built-in SSRF protection, configurable SSL verification, and private IP blocking
 - 🐳 **Docker Ready**: Easy deployment with Docker and docker-compose
 - ⚡ **Fast & Lightweight**: Built in Go for optimal performance
 - 📊 **Rich Response Display**: Formatted JSON, status codes with colors, timing information
@@ -154,6 +156,60 @@ http:
   verify_ssl: true
   block_private_ips: true
 ```
+
+## Diagnostic Features
+
+### DNS Diagnostics
+
+Every request automatically performs DNS diagnostics, providing:
+- **Hostname resolution**: Extracts and resolves the domain from the URL
+- **IP addresses**: Shows all resolved IPv4 and IPv6 addresses
+- **Lookup timing**: Measures DNS resolution performance
+- **Error detection**: Identifies DNS failures with detailed error messages
+
+Example output:
+```
+Hostname: api.github.com
+IP Addresses: 140.82.121.6, 2606:50c0:8000::154
+Lookup Time: 45.23ms
+```
+
+### SSL Certificate Inspection
+
+For HTTPS URLs, automatic SSL/TLS certificate inspection provides:
+- **Certificate validity**: Checks if the certificate is valid and trusted
+- **Expiration information**: Shows when the certificate expires (with countdown)
+- **Issuer details**: Displays the Certificate Authority (CA)
+- **Subject information**: Shows the certificate owner
+- **DNS names**: Lists all domains covered by the certificate
+- **Algorithms**: Shows signature and public key algorithms
+- **Serial number**: Certificate serial number for identification
+
+Example output:
+```
+Subject: github.com
+Issuer: DigiCert TLS Hybrid ECC SHA384 2020 CA1
+Valid From: 2024-02-14 00:00:00 UTC
+Valid Until: 2025-03-14 23:59:59 UTC
+Expires In: 95 days
+DNS Names: github.com, www.github.com
+Signature Algorithm: ECDSAWithSHA384
+Public Key Algorithm: ECDSA
+```
+
+### SSL Verification Toggle
+
+The web UI includes a checkbox to control SSL certificate verification:
+- **Enabled (default)**: Verifies SSL certificates and rejects invalid ones
+- **Disabled**: Allows requests to servers with self-signed or invalid certificates
+- **Per-request control**: Each request can have its own SSL verification setting
+
+Use cases for disabling SSL verification:
+- Testing development/staging environments with self-signed certificates
+- Debugging SSL certificate issues
+- Working with internal services that don't have valid certificates
+
+**⚠️ Security Note**: Only disable SSL verification when you trust the target server. This feature is intended for development and debugging purposes.
 
 ## Usage Examples
 
