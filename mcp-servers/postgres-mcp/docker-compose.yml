@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # PostgreSQL MCP Server
+  postgres-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: postgres-mcp-server
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      # PostgreSQL connection (connects to postgres service below)
+      - Postgres__DefaultConnectionString=Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123
+      # AI Configuration (set your OpenAI API key here or use user secrets)
+      - Ai__ApiKey=${OPENAI_API_KEY}
+      - Ai__Model=gpt-4
+      - Ai__Enabled=true
+      # Security settings for development
+      - Security__EnableRateLimiting=false
+      - Security__MaxRowsPerQuery=1000
+      - Security__AllowDataModification=false
+      - Security__AllowSchemaModification=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  # PostgreSQL Database (for testing)
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-mcp-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=testdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker-init:/docker-entrypoint-initdb.d
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # pgAdmin (optional - for database management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: postgres-mcp-pgadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - mcp-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  pgadmin-data:
+    driver: local
