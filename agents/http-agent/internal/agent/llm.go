@@ -32,6 +32,27 @@ type AnthropicClient struct {
 	client *http.Client
 }
 
+// GeminiClient implements LLM client for Google Gemini
+type GeminiClient struct {
+	apiKey string
+	model  string
+	client *http.Client
+}
+
+// OllamaClient implements LLM client for Ollama (local LLM)
+type OllamaClient struct {
+	baseURL string
+	model   string
+	client  *http.Client
+}
+
+// LMStudioClient implements LLM client for LM Studio (OpenAI-compatible)
+type LMStudioClient struct {
+	baseURL string
+	model   string
+	client  *http.Client
+}
+
 // NewLLMClient creates a new LLM client based on the provider
 func NewLLMClient(config *models.LLMConfig) (LLMClient, error) {
 	switch strings.ToLower(config.Provider) {
@@ -61,8 +82,49 @@ func NewLLMClient(config *models.LLMConfig) (LLMClient, error) {
 			model:  model,
 			client: &http.Client{Timeout: 30 * time.Second},
 		}, nil
+	case "gemini", "google":
+		if config.APIKey == "" {
+			return nil, fmt.Errorf("Gemini API key is required")
+		}
+		model := config.Model
+		if model == "" {
+			model = "gemini-1.5-pro"
+		}
+		return &GeminiClient{
+			apiKey: config.APIKey,
+			model:  model,
+			client: &http.Client{Timeout: 30 * time.Second},
+		}, nil
+	case "ollama":
+		baseURL := config.BaseURL
+		if baseURL == "" {
+			baseURL = "http://localhost:11434"
+		}
+		model := config.Model
+		if model == "" {
+			model = "llama2"
+		}
+		return &OllamaClient{
+			baseURL: baseURL,
+			model:   model,
+			client:  &http.Client{Timeout: 60 * time.Second}, // Longer timeout for local models
+		}, nil
+	case "lmstudio", "lm-studio":
+		baseURL := config.BaseURL
+		if baseURL == "" {
+			baseURL = "http://localhost:1234"
+		}
+		model := config.Model
+		if model == "" {
+			model = "local-model"
+		}
+		return &LMStudioClient{
+			baseURL: baseURL,
+			model:   model,
+			client:  &http.Client{Timeout: 60 * time.Second},
+		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported LLM provider: %s", config.Provider)
+		return nil, fmt.Errorf("unsupported LLM provider: %s (supported: openai, anthropic, gemini, ollama, lmstudio)", config.Provider)
 	}
 }
 
@@ -178,6 +240,185 @@ func (c *AnthropicClient) Analyze(ctx context.Context, request *models.RequestCo
 	}
 
 	return result.Content[0].Text, nil
+}
+
+// Analyze uses Google Gemini to analyze the HTTP request/response
+func (c *GeminiClient) Analyze(ctx context.Context, request *models.RequestConfig, response *models.Response, prompt string) (string, error) {
+	systemPrompt := buildSystemPrompt()
+	userPrompt := buildUserPrompt(request, response, prompt)
+
+	// Gemini uses a different request structure
+	reqBody := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": []map[string]string{
+					{"text": systemPrompt + "\n\n" + userPrompt},
+				},
+			},
+		},
+		"generationConfig": map[string]interface{}{
+			"temperature":     0.7,
+			"maxOutputTokens": 1024,
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Gemini API URL includes the API key as a query parameter
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", c.model, c.apiKey)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to call Gemini API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("Gemini API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("no response from Gemini")
+	}
+
+	return result.Candidates[0].Content.Parts[0].Text, nil
+}
+
+// Analyze uses Ollama to analyze the HTTP request/response
+func (c *OllamaClient) Analyze(ctx context.Context, request *models.RequestConfig, response *models.Response, prompt string) (string, error) {
+	systemPrompt := buildSystemPrompt()
+	userPrompt := buildUserPrompt(request, response, prompt)
+
+	reqBody := map[string]interface{}{
+		"model":  c.model,
+		"prompt": systemPrompt + "\n\n" + userPrompt,
+		"stream": false,
+		"options": map[string]interface{}{
+			"temperature": 0.7,
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := c.baseURL + "/api/generate"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to call Ollama API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("Ollama API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Response string `json:"response"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if result.Response == "" {
+		return "", fmt.Errorf("no response from Ollama")
+	}
+
+	return result.Response, nil
+}
+
+// Analyze uses LM Studio to analyze the HTTP request/response
+// LM Studio uses OpenAI-compatible API
+func (c *LMStudioClient) Analyze(ctx context.Context, request *models.RequestConfig, response *models.Response, prompt string) (string, error) {
+	systemPrompt := buildSystemPrompt()
+	userPrompt := buildUserPrompt(request, response, prompt)
+
+	reqBody := map[string]interface{}{
+		"model": c.model,
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
+		},
+		"temperature": 0.7,
+		"max_tokens":  1000,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := c.baseURL + "/v1/chat/completions"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to call LM Studio API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("LM Studio API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("no response from LM Studio")
+	}
+
+	return result.Choices[0].Message.Content, nil
 }
 
 // buildSystemPrompt creates the system prompt for the LLM

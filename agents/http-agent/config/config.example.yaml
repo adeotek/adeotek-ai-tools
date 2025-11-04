@@ -8,19 +8,60 @@ server:
   write_timeout: 30
 
 llm:
-  # Provider: openai, anthropic, or ollama
+  # Provider: openai, anthropic, gemini, ollama, or lmstudio
   provider: "openai"
 
-  # API Key (can also be set via OPENAI_API_KEY or ANTHROPIC_API_KEY env var)
+  # API Key (can also be set via environment variables)
+  # For OpenAI: OPENAI_API_KEY
+  # For Anthropic: ANTHROPIC_API_KEY
+  # For Gemini: GEMINI_API_KEY or GOOGLE_API_KEY
+  # Not needed for Ollama or LM Studio
   api_key: ""
 
   # Model to use
-  # OpenAI: gpt-4-turbo-preview, gpt-3.5-turbo
-  # Anthropic: claude-3-5-sonnet-20241022, claude-3-opus-20240229
+  # OpenAI: gpt-4-turbo-preview, gpt-4o, gpt-3.5-turbo
+  # Anthropic: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229
+  # Gemini: gemini-1.5-pro, gemini-1.5-flash, gemini-pro
+  # Ollama: llama2, llama3, mistral, codellama, phi, gemma (any installed model)
+  # LM Studio: depends on loaded model (e.g., local-model)
   model: "gpt-4-turbo-preview"
 
-  # Base URL for Ollama (if using local LLM)
-  base_url: "http://localhost:11434"
+  # Base URL (only for Ollama and LM Studio)
+  # Ollama default: http://localhost:11434
+  # LM Studio default: http://localhost:1234
+  base_url: ""
+
+# Example configurations for different providers:
+
+# OpenAI Configuration:
+# llm:
+#   provider: "openai"
+#   api_key: "sk-..."
+#   model: "gpt-4-turbo-preview"
+
+# Anthropic Claude Configuration:
+# llm:
+#   provider: "anthropic"
+#   api_key: "sk-ant-..."
+#   model: "claude-3-5-sonnet-20241022"
+
+# Google Gemini Configuration:
+# llm:
+#   provider: "gemini"
+#   api_key: "AIza..."
+#   model: "gemini-1.5-pro"
+
+# Ollama Configuration (Local):
+# llm:
+#   provider: "ollama"
+#   model: "llama2"
+#   base_url: "http://localhost:11434"
+
+# LM Studio Configuration (Local):
+# llm:
+#   provider: "lmstudio"
+#   model: "local-model"
+#   base_url: "http://localhost:1234"
 
 http:
   # Request timeout in seconds

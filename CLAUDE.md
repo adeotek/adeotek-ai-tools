@@ -39,7 +39,7 @@ adeotek-ai-tools/
 
 ### 1. Intelligent HTTP Agent (`/agents/http-agent`)
 
-**Technology Stack**: Go 1.23+, Gin web framework, OpenAI/Anthropic APIs
+**Technology Stack**: Go 1.23+, Gin web framework, Multiple LLM providers
 
 **Purpose**: An AI-powered HTTP request tool that acts as an intelligent `curl` alternative. It makes HTTP/HTTPS requests and provides natural language analysis of the results.
 
@@ -47,15 +47,22 @@ adeotek-ai-tools/
 - Natural language interface for HTTP requests
 - Web UI for easy interaction
 - Support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
-- AI-powered response analysis using OpenAI or Anthropic
+- AI-powered response analysis using multiple LLM providers
 - JSON formatting, status code interpretation, performance analysis
 - Built-in security: SSRF protection, SSL verification, private IP blocking
 - Docker deployment ready
 
+**Supported LLM Providers**:
+- **OpenAI**: GPT-4, GPT-4o, GPT-3.5-turbo
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Sonnet
+- **Google Gemini**: Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Ollama**: Local models (Llama 2, Llama 3, Mistral, CodeLlama, etc.)
+- **LM Studio**: Any locally loaded model via OpenAI-compatible API
+
 **Configuration**:
-- Primary: Environment variables (`OPENAI_API_KEY`, `LLM_PROVIDER`, etc.)
+- Primary: Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `LLM_PROVIDER`, etc.)
 - Alternative: YAML config file (`config/config.yaml`)
-- See `agents/http-agent/README.md` for detailed configuration options
+- See `agents/http-agent/README.md` for detailed configuration options for each provider
 
 **Running Locally**:
 ```bash
@@ -214,11 +221,32 @@ docker-compose up -d
 docker-compose logs -f
 docker-compose down
 
-# Environment variables
+# Environment variables - OpenAI
 export OPENAI_API_KEY=sk-...
 export LLM_PROVIDER=openai
 export LLM_MODEL=gpt-4-turbo-preview
 export PORT=8080
+
+# Environment variables - Anthropic Claude
+export ANTHROPIC_API_KEY=sk-ant-...
+export LLM_PROVIDER=anthropic
+export LLM_MODEL=claude-3-5-sonnet-20241022
+
+# Environment variables - Google Gemini
+export GEMINI_API_KEY=AIza...
+export LLM_PROVIDER=gemini
+export LLM_MODEL=gemini-1.5-pro
+
+# Environment variables - Ollama (local)
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:11434
+# Note: Make sure Ollama is running: ollama serve
+
+# Environment variables - LM Studio (local)
+export LLM_PROVIDER=lmstudio
+export LLM_MODEL=local-model
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
 ```
 
 ## Architecture Patterns
@@ -243,10 +271,13 @@ All projects support multiple configuration methods:
 
 Projects that integrate with LLMs follow this pattern:
 - Abstract LLM interface for multiple providers
-- Support for OpenAI, Anthropic, and local models (Ollama)
+- Support for multiple cloud and local LLM providers:
+  - **Cloud**: OpenAI, Anthropic, Google Gemini
+  - **Local**: Ollama, LM Studio
 - Configurable models and parameters
 - Structured prompts with system and user messages
 - Error handling for API failures
+- Provider-specific API implementations
 
 ## Working with Claude
 

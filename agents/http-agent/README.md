@@ -84,27 +84,70 @@ An AI-powered HTTP request tool that understands natural language prompts and pr
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_PROVIDER` | `openai` | LLM provider: `openai` or `anthropic` |
-| `LLM_API_KEY` | - | Your API key (required) |
-| `LLM_MODEL` | `gpt-4-turbo-preview` | Model to use |
+| `LLM_PROVIDER` | `openai` | LLM provider: `openai`, `anthropic`, `gemini`, `ollama`, or `lmstudio` |
+| `LLM_API_KEY` | - | Your API key (required for cloud providers) |
+| `LLM_MODEL` | `gpt-4-turbo-preview` | Model to use (see below for options) |
+| `HTTP_AGENT_LLM_BASE_URL` | - | Base URL for Ollama/LM Studio |
 | `PORT` | `8080` | Server port |
 | `HTTP_TIMEOUT` | `30` | HTTP request timeout (seconds) |
 | `VERIFY_SSL` | `true` | Verify SSL certificates |
 | `BLOCK_PRIVATE_IPS` | `true` | Block private IP addresses |
 
+### Supported LLM Providers
+
+#### OpenAI
+```bash
+export LLM_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+export LLM_MODEL=gpt-4-turbo-preview  # or gpt-4o, gpt-3.5-turbo
+```
+
+#### Anthropic Claude
+```bash
+export LLM_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+export LLM_MODEL=claude-3-5-sonnet-20241022  # or claude-3-opus-20240229
+```
+
+#### Google Gemini
+```bash
+export LLM_PROVIDER=gemini
+export GEMINI_API_KEY=AIza...
+export LLM_MODEL=gemini-1.5-pro  # or gemini-1.5-flash, gemini-pro
+```
+
+#### Ollama (Local LLM)
+```bash
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2  # or llama3, mistral, codellama, phi, gemma
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:11434
+# Make sure Ollama is running: ollama serve
+# Pull model: ollama pull llama2
+```
+
+#### LM Studio (Local LLM)
+```bash
+export LLM_PROVIDER=lmstudio
+export LLM_MODEL=local-model
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
+# Make sure LM Studio server is running
+```
+
 ### Configuration File
 
-Alternatively, create `config/config.yaml`:
+Alternatively, create `config/config.yaml`. See [`config/config.example.yaml`](config/config.example.yaml) for complete configuration examples for all supported LLM providers.
 
+Basic example:
 ```yaml
 server:
   port: "8080"
   host: "0.0.0.0"
 
 llm:
-  provider: "openai"
+  provider: "openai"  # or anthropic, gemini, ollama, lmstudio
   api_key: "your-key-here"
   model: "gpt-4-turbo-preview"
+  base_url: ""  # only for ollama/lmstudio
 
 http:
   timeout: 30

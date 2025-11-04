@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -112,23 +113,44 @@ func loadConfig() (*models.Config, error) {
 	// Bind specific environment variables
 	viper.BindEnv("server.port", "PORT")
 	viper.BindEnv("llm.provider", "LLM_PROVIDER")
-	viper.BindEnv("llm.api_key", "LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+	viper.BindEnv("llm.api_key", "LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
 	viper.BindEnv("llm.model", "LLM_MODEL")
+	viper.BindEnv("llm.base_url", "HTTP_AGENT_LLM_BASE_URL")
 
 	var config models.Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, err
 	}
 
-	// Validate required fields
-	if config.LLM.APIKey == "" {
-		// Try to get from specific env vars
-		if key := os.Getenv("OPENAI_API_KEY"); key != "" {
-			config.LLM.APIKey = key
-		} else if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
-			config.LLM.APIKey = key
-		} else {
-			return nil, fmt.Errorf("LLM API key is required. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+	// Validate required fields - API key needed for cloud providers
+	provider := strings.ToLower(config.LLM.Provider)
+	requiresAPIKey := provider == "openai" || provider == "anthropic" || provider == "claude" || provider == "gemini" || provider == "google"
+
+	if requiresAPIKey && config.LLM.APIKey == "" {
+		// Try to get from specific env vars based on provider
+		switch provider {
+		case "openai":
+			if key := os.Getenv("OPENAI_API_KEY"); key != "" {
+				config.LLM.APIKey = key
+			} else {
+				return nil, fmt.Errorf("OpenAI API key is required. Set OPENAI_API_KEY environment variable")
+			}
+		case "anthropic", "claude":
+			if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+				config.LLM.APIKey = key
+			} else {
+				return nil, fmt.Errorf("Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable")
+			}
+		case "gemini", "google":
+			if key := os.Getenv("GEMINI_API_KEY"); key != "" {
+				config.LLM.APIKey = key
+			} else if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
+				config.LLM.APIKey = key
+			} else {
+				return nil, fmt.Errorf("Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
+			}
+		default:
+			return nil, fmt.Errorf("LLM API key is required. Set the appropriate API key environment variable")
 		}
 	}
 
