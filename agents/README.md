@@ -1,6 +1,18 @@
 # AI Agents
 
-This directory will contain autonomous AI agents for specific tasks.
+This directory contains intelligent AI agents that use Large Language Models (LLMs) to accomplish specific tasks.
+
+## Available Agents
+
+### Intelligent HTTP Agent
+
+**Location**: [`/agents/http-agent`](./http-agent)
+**Language**: Go
+**Status**: ✅ Ready to use
+
+An AI-powered HTTP request tool that acts as an intelligent `curl` alternative. It makes HTTP/HTTPS requests and provides natural language analysis of results.
+
+[Read full documentation →](./http-agent/README.md)
 
 ## Planned Agents
 
@@ -47,5 +59,4 @@ Each agent should:
 
 ---
 
-**Status**: Coming Soon
-**Last Updated**: 2024-11-04
+**Last Updated**: 2025-11-05

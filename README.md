@@ -43,15 +43,26 @@ go run cmd/server/main.go
 
 **Location**: [`/mcp-servers/postgres-mcp`](./mcp-servers/postgres-mcp)
 **Language**: .NET 9
-**Status**: 📋 Planned
+**Status**: ✅ Ready to use
 
-Model Context Protocol server for PostgreSQL with AI-powered query generation and schema analysis.
+A production-ready Model Context Protocol (MCP) server for PostgreSQL database operations with AI-powered query generation and natural language understanding.
 
-**Planned Features**:
-- Schema scanning and relationship mapping
-- Natural language to SQL query generation
-- Data analysis and insights
-- MCP protocol compliance
+**Features**:
+- 🔍 **Schema Scanner**: Comprehensive database structure analysis
+- 💬 **Natural Language Queries**: Convert plain English to SQL
+- 🤖 **AI-Powered SQL Generation**: Advanced query generation with validation
+- 🔒 **Security First**: SQL injection prevention, rate limiting, read-only by default
+- 📊 **Three MCP Tools**: scan_database_structure, query_database_data, advanced_sql_query
+- 🐳 **Docker Ready**: Complete setup with PostgreSQL and pgAdmin
+
+**Quick Start**:
+```bash
+cd mcp-servers/postgres-mcp
+docker-compose up -d
+# Open http://localhost:5000/scalar/v1
+```
+
+[Read full documentation →](./mcp-servers/postgres-mcp/README.md)
 
 ---
 
@@ -86,7 +97,7 @@ adeotek-ai-tools/
 ├── agents/              # Intelligent AI agents
 │   └── http-agent/      # HTTP request agent with AI analysis
 ├── mcp-servers/         # Model Context Protocol servers
-│   └── postgres-mcp/    # PostgreSQL MCP server (planned)
+│   └── postgres-mcp/    # PostgreSQL MCP server with AI query generation
 ├── tools/               # Additional AI tools (planned)
 ├── README.md           # This file
 ├── CLAUDE.md           # Detailed context for Claude AI
@@ -96,10 +107,12 @@ adeotek-ai-tools/
 ## 🛠️ Technology Stack
 
 - **Go**: Gin web framework, Viper configuration
-- **.NET**: ASP.NET Core, Semantic Kernel
-- **AI/LLM**: OpenAI API, Anthropic Claude API
+- **.NET 9**: ASP.NET Core, Semantic Kernel, Npgsql, Scalar (API docs)
+- **AI/LLM**: OpenAI, Anthropic Claude, Google Gemini, Ollama, LM Studio
 - **Containers**: Docker, Docker Compose
-- **Databases**: PostgreSQL (via Npgsql)
+- **Databases**: PostgreSQL
+- **Testing**: xUnit, Moq, FluentAssertions
+- **Logging**: Serilog (structured logging)
 
 ## 📚 Documentation
 
