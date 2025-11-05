@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ .title }}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="header">
+      <h1>🚀 Intelligent HTTP Agent</h1>
+      <p>Make HTTP requests and get AI-powered insights</p>
+    </div>
+    <div class="main-content">
+      <!-- Request Form -->
+      <div class="card request-form">
+        <h2>📤 Request Configuration</h2>
+        <form id="request-form">
+          <div class="form-group">
+            <label for="url">URL *</label>
+            <input
+              type="text"
+              id="url"
+              name="url"
+              placeholder="https://api.example.com/endpoint"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="method">Method *</label>
+            <select id="method" name="method">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+              <option value="PATCH">PATCH</option>
+              <option value="OPTIONS">OPTIONS</option>
+              <option value="HEAD">HEAD</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Headers (optional)</label>
+            <div class="headers-container" id="headers-container">
+              <!-- Headers will be added dynamically -->
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary btn-small add-header-btn"
+              onclick="addHeader()"
+            >
+              + Add Header
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="body">Request Body (optional)</label>
+            <textarea
+              id="body"
+              name="body"
+              rows="5"
+              placeholder='{"key": "value"}'
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="prompt">AI Prompt (optional)</label>
+            <textarea
+              id="prompt"
+              name="prompt"
+              rows="3"
+              placeholder="What is the response code? Is the API healthy?"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; cursor: pointer">
+              <input
+                type="checkbox"
+                id="verify-ssl"
+                name="verify_ssl"
+                checked
+                style="
+                  margin-right: 8px;
+                  width: auto;
+                  height: 18px;
+                  cursor: pointer;
+                "
+              />
+              <span>Verify SSL Certificate (recommended)</span>
+            </label>
+            <small style="color: #666; display: block; margin-top: 5px"
+              >Uncheck to allow self-signed or invalid certificates</small
+            >
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submit-btn">
+            Send Request
+          </button>
+        </form>
+
+        <div class="example-links">
+          <h4>Quick Examples:</h4>
+          <a
+            href="#"
+            class="example-link"
+            onclick="loadExample('github'); return false;"
+            >GitHub API</a
+          >
+          <a
+            href="#"
+            class="example-link"
+            onclick="loadExample('httpbin'); return false;"
+            >HTTPBin Test</a
+          >
+          <a
+            href="#"
+            class="example-link"
+            onclick="loadExample('json'); return false;"
+            >JSON Placeholder</a
+          >
+        </div>
+      </div>
+      <!-- Results -->
+      <div class="card results-card" id="result-container">
+        <h2>📥 Response & Analysis</h2>
+        <div id="loading" class="loading" style="display: none">
+          <div class="spinner"></div>
+          <p>Processing request...</p>
+        </div>
+        <div id="result-content"></div>
+      </div>
+    </div>
+
+    <script>
+      let headerCount = 0;
+
+      function addHeader() {
+        headerCount++;
+        const container = document.getElementById("headers-container");
+        const row = document.createElement("div");
+        row.className = "header-row";
+        row.id = `header-row-${headerCount}`;
+        row.innerHTML = `
+                <input type="text" placeholder="Header name" id="header-key-${headerCount}">
+                <input type="text" placeholder="Header value" id="header-value-${headerCount}">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeHeader(${headerCount})">×</button>
+            `;
+        container.appendChild(row);
+      }
+
+      function removeHeader(id) {
+        const row = document.getElementById(`header-row-${id}`);
+        if (row) {
+          row.remove();
+        }
+      }
+
+      function loadExample(type) {
+        const examples = {
+          github: {
+            url: "https://api.github.com/users/github",
+            method: "GET",
+            headers: { Accept: "application/json" },
+            prompt: "Tell me about this GitHub user",
+          },
+          httpbin: {
+            url: "https://httpbin.org/post",
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body:
+              '{"test": "data", "timestamp": "' +
+              new Date().toISOString() +
+              '"}',
+            prompt: "What did the server echo back?",
+          },
+          json: {
+            url: "https://jsonplaceholder.typicode.com/posts/1",
+            method: "GET",
+            headers: {},
+            prompt: "Summarize this post",
+          },
+        };
+
+        const example = examples[type];
+        if (example) {
+          document.getElementById("url").value = example.url;
+          document.getElementById("method").value = example.method;
+          document.getElementById("body").value = example.body || "";
+          document.getElementById("prompt").value = example.prompt;
+
+          // Clear and add headers
+          document.getElementById("headers-container").innerHTML = "";
+          headerCount = 0;
+          for (const [key, value] of Object.entries(example.headers)) {
+            addHeader();
+            document.getElementById(`header-key-${headerCount}`).value = key;
+            document.getElementById(`header-value-${headerCount}`).value =
+              value;
+          }
+        }
+      }
+
+      document
+        .getElementById("request-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const url = document.getElementById("url").value;
+          const method = document.getElementById("method").value;
+          const body = document.getElementById("body").value;
+          const prompt = document.getElementById("prompt").value;
+          const verifySSL = document.getElementById("verify-ssl").checked;
+
+          // Collect headers
+          const headers = {};
+          const headerRows = document.querySelectorAll(".header-row");
+          headerRows.forEach((row) => {
+            const keyInput = row.querySelector('input[id^="header-key-"]');
+            const valueInput = row.querySelector('input[id^="header-value-"]');
+            if (keyInput && valueInput && keyInput.value && valueInput.value) {
+              headers[keyInput.value] = valueInput.value;
+            }
+          });
+
+          // Show loading
+          document.getElementById("result-container").style.display = "block";
+          document.getElementById("loading").style.display = "block";
+          document.getElementById("result-content").innerHTML = "";
+          document.getElementById("submit-btn").disabled = true;
+
+          try {
+            const response = await fetch("/api/request", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url,
+                method,
+                headers,
+                body,
+                prompt,
+                verify_ssl: verifySSL,
+              }),
+            });
+
+            const data = await response.json();
+
+            // Hide loading
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("submit-btn").disabled = false;
+
+            if (data.error) {
+              document.getElementById("result-content").innerHTML = `
+                        <div class="error-box">
+                            <strong>Error:</strong> ${escapeHtml(data.error)}
+                        </div>
+                    `;
+            } else {
+              displayResult(data);
+            }
+          } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("submit-btn").disabled = false;
+            document.getElementById("result-content").innerHTML = `
+                    <div class="error-box">
+                        <strong>Error:</strong> ${escapeHtml(error.message)}
+                    </div>
+                `;
+          }
+        });
+
+      function displayResult(data) {
+        const statusClass = `status-${data.status_color}`;
+        let html = `
+                <div class="info-grid">
+                    <div class="info-label">Status:</div>
+                    <div class="info-value">
+                        <span class="status-badge ${statusClass}">${data.response.status_code} ${data.response.status}</span>
+                    </div>
+
+                    <div class="info-label">Duration:</div>
+                    <div class="info-value">${escapeHtml(data.request_duration)}</div>
+
+                    <div class="info-label">Content-Type:</div>
+                    <div class="info-value">${escapeHtml(data.response.content_type)}</div>
+
+                    <div class="info-label">Size:</div>
+                    <div class="info-value">${formatBytes(data.response.content_length)}</div>
+
+                    <div class="info-label">SSL Verified:</div>
+                    <div class="info-value">${data.ssl_verified ? "✓ Yes" : "✗ No"}</div>
+                </div>
+            `;
+
+        // DNS Diagnostics
+        if (data.dns_diagnostics) {
+          const dns = data.dns_diagnostics;
+          html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">🌐 DNS Diagnostics</h3>
+                    <div class="code-block">`;
+          if (dns.error) {
+            html += `Error: ${escapeHtml(dns.error)}`;
+          } else {
+            html += `Hostname: ${escapeHtml(dns.hostname)}\n`;
+            html += `IP Addresses: ${dns.ip_addresses.map((ip) => escapeHtml(ip)).join(", ")}\n`;
+            html += `Lookup Time: ${escapeHtml(dns.lookup_time)}`;
+          }
+          html += `</div>`;
+        }
+
+        // SSL Certificate Diagnostics
+        if (data.ssl_diagnostics) {
+          const ssl = data.ssl_diagnostics;
+          const sslStatusClass = ssl.valid
+            ? "status-success"
+            : ssl.present
+              ? "status-error"
+              : "status-info";
+          const sslStatusText = ssl.valid
+            ? "✓ Valid"
+            : ssl.present
+              ? "✗ Invalid"
+              : "N/A";
+
+          html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">🔒 SSL Certificate</h3>
+                    <div style="margin-bottom: 10px;">
+                        <span class="status-badge ${sslStatusClass}">${sslStatusText}</span>
+                    </div>`;
+
+          if (ssl.error) {
+            html += `<div class="error-box">${escapeHtml(ssl.error)}</div>`;
+          } else if (ssl.present) {
+            html += `<div class="code-block">${escapeHtml(ssl.certificate_info)}</div>`;
+          }
+        }
+
+        html += `
+                <h3 style="margin-top: 20px; color: #667eea;">🤖 AI Analysis</h3>
+                <div class="analysis-box">
+                    ${escapeHtml(data.analysis).replace(/\n/g, "<br>")}
+                </div>
+            `;
+
+        if (data.formatted_body) {
+          html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">📄 Response Body</h3>
+                    <div class="code-block">${escapeHtml(data.formatted_body)}</div>
+                `;
+        }
+
+        if (data.response.headers) {
+          html += `
+                    <h3 style="margin-top: 20px; color: #667eea;">📋 Response Headers</h3>
+                    <div class="code-block">`;
+          for (const [key, value] of Object.entries(data.response.headers)) {
+            html += `${escapeHtml(key)}: ${escapeHtml(Array.isArray(value) ? value.join(", ") : value)}\n`;
+          }
+          html += `</div>`;
+        }
+
+        document.getElementById("result-content").innerHTML = html;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
+      }
+
+      // Add initial header row
+      addHeader();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  http-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelligent-http-agent
+    ports:
+      - "8080:8080"
+    environment:
+      # LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo-preview}
+
+      # Server Configuration
+      - PORT=${PORT:-8080}
+
+      # HTTP Client Configuration
+      - HTTP_AGENT_HTTP_TIMEOUT=${HTTP_TIMEOUT:-30}
+      - HTTP_AGENT_HTTP_VERIFY_SSL=${VERIFY_SSL:-true}
+      - HTTP_AGENT_HTTP_BLOCK_PRIVATE_IPS=${BLOCK_PRIVATE_IPS:-true}
+
+    volumes:
+      # Mount config directory (optional)
+      - ./config:/home/httpagent/config:ro
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    networks:
+      - http-agent-network
+
+networks:
+  http-agent-network:
+    driver: bridge
