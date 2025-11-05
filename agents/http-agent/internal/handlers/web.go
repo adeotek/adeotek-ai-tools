@@ -3,6 +3,7 @@ package handlers
 import (
 	"embed"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"strings"
@@ -37,8 +38,12 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 	}
 	r.SetHTMLTemplate(tmpl)
 
-	// Serve static files
-	r.StaticFS("/static", http.FS(staticFS))
+	// Serve static files - strip "static" prefix from embedded FS
+	staticSub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatalf("Failed to create static sub-filesystem: %v", err)
+	}
+	r.StaticFS("/static", http.FS(staticSub))
 
 	// Routes
 	r.GET("/", h.handleIndex)
