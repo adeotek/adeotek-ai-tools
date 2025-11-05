@@ -16,6 +16,7 @@ import (
 	"github.com/adeotek/adeotek-ai-tools/agents/http-agent/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 )
 
 func main() {
@@ -77,6 +78,9 @@ func main() {
 }
 
 func loadConfig() (*models.Config, error) {
+	// Load .env file if it exists (for local development)
+	_ = gotenv.Load(".env")
+
 	// Set default values
 	viper.SetDefault("server.port", "8080")
 	viper.SetDefault("server.host", "0.0.0.0")
@@ -122,24 +126,31 @@ func loadConfig() (*models.Config, error) {
 		return nil, err
 	}
 
-	// Validate required fields - API key needed for cloud providers
+	// Validate required fields - API key needed for cloud providers only
 	provider := strings.ToLower(config.LLM.Provider)
 	requiresAPIKey := provider == "openai" || provider == "anthropic" || provider == "claude" || provider == "gemini" || provider == "google"
 
-	if requiresAPIKey && config.LLM.APIKey == "" {
+	// Local providers (ollama, lmstudio) don't require API keys
+	if !requiresAPIKey {
+		log.Printf("Using local LLM provider: %s (no API key required)", config.LLM.Provider)
+		return &config, nil
+	}
+
+	// For cloud providers, validate API key
+	if config.LLM.APIKey == "" {
 		// Try to get from specific env vars based on provider
 		switch provider {
 		case "openai":
 			if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 				config.LLM.APIKey = key
 			} else {
-				return nil, fmt.Errorf("OpenAI API key is required. Set OPENAI_API_KEY environment variable")
+				return nil, fmt.Errorf("provider '%s' requires an API key. Set OPENAI_API_KEY environment variable", config.LLM.Provider)
 			}
 		case "anthropic", "claude":
 			if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
 				config.LLM.APIKey = key
 			} else {
-				return nil, fmt.Errorf("Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable")
+				return nil, fmt.Errorf("provider '%s' requires an API key. Set ANTHROPIC_API_KEY environment variable", config.LLM.Provider)
 			}
 		case "gemini", "google":
 			if key := os.Getenv("GEMINI_API_KEY"); key != "" {
@@ -147,10 +158,10 @@ func loadConfig() (*models.Config, error) {
 			} else if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
 				config.LLM.APIKey = key
 			} else {
-				return nil, fmt.Errorf("Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
+				return nil, fmt.Errorf("provider '%s' requires an API key. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable", config.LLM.Provider)
 			}
 		default:
-			return nil, fmt.Errorf("LLM API key is required. Set the appropriate API key environment variable")
+			return nil, fmt.Errorf("unknown cloud provider '%s'. Supported: openai, anthropic, gemini, ollama, lmstudio", config.LLM.Provider)
 		}
 	}
 
