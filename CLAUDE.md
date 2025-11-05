@@ -1,524 +1,456 @@
-# CLAUDE.md - AI Tools Repository Context
+# Adeotek AI Tools - Context for Claude
 
-This document provides comprehensive context for Claude (or any AI assistant) when interacting with this repository. It explains the structure, patterns, and guidelines for development.
+This document provides comprehensive context about the Adeotek AI Tools repository for Claude (both CLI and Web) interactions. It describes the repository structure, purpose, development guidelines, and how to work with the various AI tools, agents, and MCP servers contained within.
 
-## Repository Purpose
+## Repository Overview
 
-This repository is a curated collection of AI-related tools, agents, and Model Context Protocol (MCP) servers. It serves as a central hub for building and deploying AI-powered utilities that can be used independently or integrated into larger AI systems.
+**Purpose**: A collection of AI-related tools, intelligent agents, and Model Context Protocol (MCP) servers designed to enhance productivity and enable AI-powered workflows.
 
-### Key Objectives
-- **MCP Servers**: Implementations of the Model Context Protocol for various data sources and operations
-- **AI Agents**: Autonomous agents for specific tasks (future)
-- **AI Tools**: Utility tools and libraries for AI development (future)
-- **Production Ready**: All components are production-grade with proper testing, documentation, and security
+**Organization**: The repository is structured to accommodate multiple types of AI tools:
+- **MCP Servers**: Protocol-compliant servers for database operations and other services
+- **Agents**: Intelligent agents that use LLMs to accomplish specific tasks
+- **Tools**: Utility tools and helpers for AI-powered workflows
 
 ## Project Structure
 
 ```
-/
-├── README.md                    # Repository overview and quick start
-├── CLAUDE.md                    # This file - detailed context for AI interactions
-├── mcp-servers/                 # MCP server implementations
-│   └── postgres-mcp/           # PostgreSQL MCP Server
-│       ├── src/
-│       │   ├── PostgresMcp/            # Main application
-│       │   │   ├── Program.cs          # Application entry point
-│       │   │   ├── PostgresMcp.csproj  # Project file
-│       │   │   ├── Controllers/        # API controllers
-│       │   │   │   └── McpController.cs # MCP endpoint implementation
-│       │   │   ├── Services/           # Business logic services
-│       │   │   │   ├── DatabaseSchemaService.cs    # Schema scanning
-│       │   │   │   ├── QueryService.cs             # Data querying
-│       │   │   │   └── SqlGenerationService.cs     # AI-powered SQL generation
-│       │   │   └── Models/             # Data models and DTOs
-│       │   │       ├── McpModels.cs           # MCP protocol models
-│       │   │       ├── DatabaseModels.cs      # Database schema models
-│       │   │       └── ConfigurationModels.cs # Configuration options
-│       │   └── PostgresMcp.Tests/      # Unit tests
-│       ├── Dockerfile                  # Container definition
-│       ├── docker-compose.yml          # Multi-container orchestration
-│       ├── docker-init/                # Database initialization scripts
-│       └── README.md                   # Project-specific documentation
-├── agents/                      # Future: AI agents
-└── tools/                       # Future: AI utility tools
+adeotek-ai-tools/
+├── README.md                 # High-level repository overview
+├── CLAUDE.md                # This file - detailed context for Claude
+├── LICENSE                  # MIT License
+├── mcp-servers/             # Model Context Protocol servers
+│   └── postgres-mcp/        # PostgreSQL MCP server (planned)
+├── agents/                  # Intelligent AI agents
+│   └── http-agent/          # Intelligent HTTP request agent
+│       ├── cmd/
+│       │   └── server/      # Main application entry
+│       ├── internal/        # Internal packages
+│       │   ├── agent/       # Core agent logic
+│       │   ├── handlers/    # HTTP handlers & web UI
+│       │   └── models/      # Data models
+│       ├── config/          # Configuration files
+│       ├── Dockerfile       # Docker build
+│       ├── docker-compose.yml
+│       └── README.md        # Agent-specific documentation
+└── tools/                   # Additional AI tools (planned)
 ```
 
-## Architecture Decisions
+## Current Projects
 
-### 1. MCP Server Design Pattern
+### 1. Intelligent HTTP Agent (`/agents/http-agent`)
 
-All MCP servers follow a consistent architecture:
+**Technology Stack**: Go 1.24.7+, Gin web framework, Multiple LLM providers
 
-**Layered Architecture**:
-- **Controllers**: Handle HTTP requests and MCP protocol compliance
-- **Services**: Contain business logic and data access
-- **Models**: Define data structures and configurations
+**Purpose**: An AI-powered HTTP request tool that acts as an intelligent `curl` alternative. It makes HTTP/HTTPS requests and provides natural language analysis of the results.
 
-**Key Principles**:
-- Dependency injection for all services
-- Separation of concerns (schema, query, SQL generation)
-- Async/await throughout for better performance
-- Comprehensive error handling and logging
+**Key Features**:
+- Natural language interface for HTTP requests
+- Web UI for easy interaction
+- Support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
+- AI-powered response analysis using multiple LLM providers
+- **DNS diagnostics**: Automatic hostname resolution, IP lookup, and timing (nslookup-like)
+- **SSL certificate inspection**: Certificate validation, expiration, CA details, and algorithm information
+- **Configurable SSL verification**: Per-request SSL verification toggle for self-signed certificates
+- JSON formatting, status code interpretation, performance analysis
+- Built-in security: SSRF protection, configurable SSL verification, private IP blocking
+- Docker deployment ready
 
-### 2. PostgreSQL MCP Server
+**Supported LLM Providers**:
+- **OpenAI**: GPT-4, GPT-4o, GPT-3.5-turbo
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Sonnet
+- **Google Gemini**: Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Ollama**: Local models (Llama 2, Llama 3, Mistral, CodeLlama, etc.)
+- **LM Studio**: Any locally loaded model via OpenAI-compatible API
 
-**Technology Stack**:
-- **.NET 9**: Latest .NET runtime with C# 13 features
-- **ASP.NET Core**: Web framework with Minimal APIs
-- **Npgsql**: PostgreSQL data provider
-- **Semantic Kernel**: AI/LLM integration
-- **Serilog**: Structured logging
-- **xUnit**: Unit testing framework
+**Configuration**:
+- Primary: Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `LLM_PROVIDER`, etc.)
+- Alternative: YAML config file (`config/config.yaml`)
+- See `agents/http-agent/README.md` for detailed configuration options for each provider
 
-**Three Core Tools**:
-
-1. **scan_database_structure**
-   - Scans database schema (tables, columns, relationships)
-   - Provides detailed metadata (indexes, constraints, foreign keys)
-   - Answers natural language questions about schema
-   - Uses AI to interpret schema questions
-
-2. **query_database_data**
-   - Converts natural language to SQL queries
-   - Automatically follows foreign key relationships
-   - Returns structured JSON results
-   - Includes execution metadata
-
-3. **advanced_sql_query**
-   - AI-powered SQL generation from natural language
-   - Validates query safety (prevents injection, data modification)
-   - Optimizes queries for performance
-   - Returns query explanation and confidence score
-
-**Security Features**:
-- Read-only by default (no INSERT/UPDATE/DELETE)
-- SQL injection prevention via parameterized queries
-- Rate limiting per IP address
-- Query timeout enforcement
-- Row count limits
-- Schema/table filtering
-
-### 3. Configuration Management
-
-**Configuration Sources** (in order of precedence):
-1. Environment variables
-2. appsettings.{Environment}.json
-3. appsettings.json
-4. User secrets (for development)
-
-**Key Configuration Sections**:
-- `Postgres`: Database connection settings
-- `Ai`: OpenAI/Azure OpenAI configuration
-- `Security`: Safety limits and restrictions
-- `Logging`: Log levels and destinations
-
-**Example Connection String**:
-```
-Host=localhost;Port=5432;Database=mydb;Username=user;Password=pass;SSL Mode=Require
-```
-
-### 4. Docker Deployment
-
-**Multi-Stage Build**:
-1. Build stage: Compile and build application
-2. Publish stage: Create optimized release
-3. Runtime stage: Minimal runtime image
-
-**Docker Compose Services**:
-- `postgres-mcp`: The MCP server application
-- `postgres`: PostgreSQL database for testing
-- `pgadmin`: Database management UI (optional)
-
-**Environment Variables for Docker**:
+**Running Locally**:
 ```bash
-ASPNETCORE_ENVIRONMENT=Development
-Postgres__DefaultConnectionString=Host=postgres;Port=5432;Database=testdb;...
-Ai__ApiKey=your-openai-api-key
-Ai__Model=gpt-4
-Security__EnableRateLimiting=false
+cd agents/http-agent
+export OPENAI_API_KEY=your-key
+go run cmd/server/main.go
+# Open http://localhost:8080
 ```
+
+**Running with Docker**:
+```bash
+cd agents/http-agent
+cp .env.example .env
+# Edit .env with your API key
+docker-compose up -d
+```
+
+**API Endpoints**:
+- `GET /` - Web UI
+- `POST /api/request` - Execute HTTP request with AI analysis
+- `GET /health` - Health check
+
+**Example Use Cases**:
+- "Is this API endpoint accessible?"
+- "What's the response code and what does it mean?"
+- "Show me the JSON response in a readable format"
+- "Is this API response time acceptable?"
+- "What are the security headers in this response?"
+
+### 2. PostgreSQL MCP Server (`/mcp-servers/postgres-mcp`)
+
+**Status**: Planned (not yet implemented)
+
+**Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Semantic Kernel
+
+**Purpose**: Model Context Protocol server for PostgreSQL database operations with AI-powered query generation and schema analysis.
+
+**Planned Features**:
+- Schema scanning and relationship mapping
+- Natural language to SQL query generation
+- Data analysis and insights
+- MCP protocol compliance
+- HTTP-based API
 
 ## Development Guidelines
 
-### Adding a New MCP Server
+### Adding a New Agent
 
-1. **Create Project Structure**:
+1. **Create directory structure**:
    ```bash
-   mkdir -p mcp-servers/{name}-mcp/src/{Name}Mcp
-   cd mcp-servers/{name}-mcp/src/{Name}Mcp
-   dotnet new webapi -n {Name}Mcp
+   mkdir -p agents/new-agent/{cmd/server,internal/{agent,handlers,models},config}
    ```
 
-2. **Follow Naming Conventions**:
-   - Project: `{Name}Mcp` (PascalCase)
-   - Namespace: `{Name}Mcp`
-   - Controllers: `{Name}Controller.cs`
-   - Services: `I{Name}Service.cs` and `{Name}Service.cs`
+2. **Initialize Go module** (for Go agents):
+   ```bash
+   cd agents/new-agent
+   go mod init github.com/adeotek/adeotek-ai-tools/agents/new-agent
+   ```
 
-3. **Implement MCP Protocol**:
-   - Create models for MCP requests/responses
-   - Implement `/mcp/tools` endpoint (tool discovery)
-   - Implement `/mcp/tools/call` endpoint (tool execution)
-   - Implement `/mcp/jsonrpc` endpoint (JSON-RPC 2.0)
+3. **Implement core functionality**:
+   - Define models in `internal/models/`
+   - Implement agent logic in `internal/agent/`
+   - Create handlers in `internal/handlers/`
+   - Set up main entry point in `cmd/server/`
 
-4. **Add Documentation**:
-   - Project-specific README.md
-   - API documentation with Scalar
-   - XML documentation comments in code
+4. **Add Docker support**:
+   - Create `Dockerfile` with multi-stage build
+   - Create `docker-compose.yml` for easy deployment
+   - Add `.env.example` with configuration template
 
-5. **Create Tests**:
-   - Unit tests for services
-   - Integration tests for controllers
-   - Aim for >80% code coverage
+5. **Document thoroughly**:
+   - Create comprehensive `README.md` in agent directory
+   - Update this `CLAUDE.md` with agent details
+   - Update root `README.md` with quick reference
+
+### Adding a New MCP Server
+
+1. **Create directory structure** based on the technology:
+   - .NET: `mcp-servers/name-mcp/src/NameMcp/`
+   - Go: `mcp-servers/name-mcp/cmd/server/`
+   - Python: `mcp-servers/name-mcp/src/name_mcp/`
+
+2. **Implement MCP protocol**:
+   - Tool discovery endpoint
+   - JSON-RPC 2.0 communication
+   - Proper schema definitions
+   - Error handling and status codes
+
+3. **Add documentation**:
+   - Tool descriptions and usage examples
+   - Configuration instructions
+   - Docker deployment guide
 
 ### Code Quality Standards
 
-**Required Practices**:
-- ✅ Use latest C# features (records, pattern matching, etc.)
-- ✅ Async/await for all I/O operations
-- ✅ Dependency injection for all services
-- ✅ XML documentation comments for public APIs
-- ✅ Comprehensive error handling with proper exceptions
-- ✅ Structured logging with Serilog
-- ✅ Unit tests with xUnit and Moq
-- ✅ Follow .NET naming conventions
-- ✅ Use nullable reference types
+**Go Projects**:
+- Use Go 1.23+ features where appropriate
+- Follow standard Go project layout
+- Implement dependency injection
+- Use structured logging (logrus, zap, or zerolog)
+- Add comprehensive error handling
+- Write unit tests for core logic
+- Use context for cancellation/timeout
+- Document exported functions with GoDoc comments
+- Format with `gofmt` and lint with `golangci-lint`
 
-**Avoid**:
-- ❌ Hardcoded connection strings or secrets
-- ❌ Blocking I/O operations (use async)
-- ❌ String concatenation for SQL (use parameterized queries)
-- ❌ Exposing implementation details in public APIs
-- ❌ Insufficient error handling
+**.NET Projects**:
+- Use .NET 9 and C# 13
+- Follow .NET coding conventions
+- Implement dependency injection via built-in DI
+- Add XML documentation comments
+- Use async/await throughout
+- Write unit tests with xUnit
+- Use Serilog for structured logging
+
+**All Projects**:
+- Never hardcode secrets or API keys
+- Implement proper input validation
+- Add rate limiting where appropriate
+- Support configuration via environment variables
+- Include Docker deployment options
+- Write comprehensive README files
 
 ### Security Considerations
 
-**Always**:
-- Validate and sanitize all user inputs
-- Use parameterized queries (never string concatenation)
-- Implement rate limiting for public APIs
-- Set appropriate timeouts for operations
-- Use SSL/TLS for database connections
-- Follow principle of least privilege
-- Log security-relevant events
+- ✅ Use environment variables for secrets
+- ✅ Implement input validation and sanitization
+- ✅ Add SSRF protection for network requests
+- ✅ Use parameterized queries for database operations
+- ✅ Implement request timeouts
+- ✅ Add rate limiting for public APIs
+- ✅ Support SSL/TLS for all connections
+- ✅ Never log sensitive information
+- ✅ Use non-root users in Docker containers
 
-**Never**:
-- Commit secrets or API keys to version control
-- Allow arbitrary SQL execution without validation
-- Expose internal error details to clients
-- Trust client-provided data without validation
+## Common Commands
 
-## Common Commands and Workflows
-
-### Local Development
+### HTTP Agent
 
 ```bash
-# Restore dependencies
-dotnet restore
+# Local development
+cd agents/http-agent
+go run cmd/server/main.go
 
-# Build the solution
-dotnet build
+# Build binary
+go build -o http-agent ./cmd/server/main.go
 
 # Run tests
-dotnet test
+go test ./...
 
-# Run the application
-cd mcp-servers/postgres-mcp/src/PostgresMcp
-dotnet run
+# Format code
+go fmt ./...
 
-# Run with specific environment
-dotnet run --environment Development
-
-# Watch mode (auto-reload on changes)
-dotnet watch run
-```
-
-### Docker Deployment
-
-```bash
-# Build and start all services
-cd mcp-servers/postgres-mcp
+# Docker deployment
 docker-compose up -d
-
-# View logs
-docker-compose logs -f postgres-mcp
-
-# Stop services
+docker-compose logs -f
 docker-compose down
 
-# Rebuild after code changes
-docker-compose up -d --build
+# Environment variables - OpenAI
+export OPENAI_API_KEY=sk-...
+export LLM_PROVIDER=openai
+export LLM_MODEL=gpt-4-turbo-preview
+export PORT=8080
 
-# Run with specific environment file
-docker-compose --env-file .env.production up -d
+# Environment variables - Anthropic Claude
+export ANTHROPIC_API_KEY=sk-ant-...
+export LLM_PROVIDER=anthropic
+export LLM_MODEL=claude-3-5-sonnet-20241022
+
+# Environment variables - Google Gemini
+export GEMINI_API_KEY=AIza...
+export LLM_PROVIDER=gemini
+export LLM_MODEL=gemini-1.5-pro
+
+# Environment variables - Ollama (local)
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:11434
+# Note: Make sure Ollama is running: ollama serve
+
+# Environment variables - LM Studio (local)
+export LLM_PROVIDER=lmstudio
+export LLM_MODEL=local-model
+export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
 ```
 
-### Testing
+## Architecture Patterns
+
+### Agent Pattern
+
+Agents in this repository follow a common pattern:
+
+1. **Models Layer** (`internal/models/`): Data structures and configuration
+2. **Agent Layer** (`internal/agent/`): Core business logic and AI integration
+3. **Handler Layer** (`internal/handlers/`): HTTP handlers and UI
+4. **Main Entry Point** (`cmd/server/`): Application initialization and server setup
+
+### Configuration Management
+
+All projects support multiple configuration methods:
+1. Environment variables (highest priority)
+2. Configuration files (YAML/JSON)
+3. Default values (lowest priority)
+
+### LLM Integration
+
+Projects that integrate with LLMs follow this pattern:
+- Abstract LLM interface for multiple providers
+- Support for multiple cloud and local LLM providers:
+  - **Cloud**: OpenAI, Anthropic, Google Gemini
+  - **Local**: Ollama, LM Studio
+- Configurable models and parameters
+- Structured prompts with system and user messages
+- Error handling for API failures
+- Provider-specific API implementations
+
+## Working with Claude
+
+### When Adding Features
+
+1. **Understand the context**: Read the relevant README and this CLAUDE.md
+2. **Follow patterns**: Use existing agents/servers as templates
+3. **Test thoroughly**: Build, run, and test your changes
+4. **Document**: Update README files and this CLAUDE.md
+5. **Security**: Never commit secrets, validate inputs, handle errors
+
+### When Debugging
+
+1. **Check logs**: Look at application logs for errors
+2. **Verify configuration**: Ensure environment variables are set
+3. **Test endpoints**: Use curl or the web UI to test functionality
+4. **Review code**: Check for common issues (nil pointers, missing error handling)
+
+### When Refactoring
+
+1. **Maintain compatibility**: Don't break existing APIs
+2. **Update tests**: Ensure tests pass after changes
+3. **Update docs**: Keep documentation in sync with code changes
+4. **Follow conventions**: Maintain consistent code style
+
+## API Key Management
+
+### For Development
 
 ```bash
-# Run all tests
-dotnet test
+# Create .env file
+cp agents/http-agent/.env.example agents/http-agent/.env
 
-# Run tests with coverage
-dotnet test /p:CollectCoverage=true /p:CoverageReportFormat=opencover
-
-# Run specific test
-dotnet test --filter "FullyQualifiedName~McpControllerTests"
-
-# Run tests in watch mode
-dotnet watch test
+# Edit .env and add your keys
+OPENAI_API_KEY=sk-...
 ```
 
-### Database Operations
+### For Production
+
+Use secure secret management:
+- Kubernetes secrets
+- AWS Secrets Manager
+- HashiCorp Vault
+- Azure Key Vault
+- Environment variables in secure deployment platforms
+
+## Testing
+
+### HTTP Agent
 
 ```bash
-# Connect to PostgreSQL in Docker
-docker exec -it postgres-mcp-db psql -U postgres -d testdb
+# Test with example request
+curl -X POST http://localhost:8080/api/request \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://api.github.com/users/github",
+    "method": "GET",
+    "prompt": "Tell me about this user"
+  }'
 
-# Run SQL script
-docker exec -i postgres-mcp-db psql -U postgres -d testdb < script.sql
-
-# Backup database
-docker exec postgres-mcp-db pg_dump -U postgres testdb > backup.sql
-
-# Restore database
-docker exec -i postgres-mcp-db psql -U postgres testdb < backup.sql
+# Test health endpoint
+curl http://localhost:8080/health
 ```
 
-## Interacting with PostgreSQL MCP Server
+## Deployment
 
-### API Endpoints
+### Docker (Recommended)
 
-**List Available Tools**:
-```http
-GET http://localhost:5000/mcp/tools
-```
-
-**Call a Tool**:
-```http
-POST http://localhost:5000/mcp/tools/call
-Content-Type: application/json
-
-{
-  "name": "scan_database_structure",
-  "arguments": {
-    "connectionString": "Host=localhost;Database=testdb;Username=postgres;Password=pass",
-    "schemaFilter": "public"
-  }
-}
-```
-
-**JSON-RPC Endpoint**:
-```http
-POST http://localhost:5000/mcp/jsonrpc
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "method": "tools/list"
-}
-```
-
-### Example Tool Calls
-
-**1. Scan Database Structure**:
-```json
-{
-  "name": "scan_database_structure",
-  "arguments": {
-    "connectionString": "Host=localhost;Database=testdb;Username=postgres;Password=postgres",
-    "question": "What tables have foreign keys to the customers table?"
-  }
-}
-```
-
-**2. Query Database Data**:
-```json
-{
-  "name": "query_database_data",
-  "arguments": {
-    "connectionString": "Host=localhost;Database=testdb;Username=postgres;Password=postgres",
-    "query": "Show me all orders from the last 7 days with customer names and total amounts"
-  }
-}
-```
-
-**3. Advanced SQL Query**:
-```json
-{
-  "name": "advanced_sql_query",
-  "arguments": {
-    "connectionString": "Host=localhost;Database=testdb;Username=postgres;Password=postgres",
-    "naturalLanguageQuery": "Calculate the average order value by product category for customers who made more than 3 orders"
-  }
-}
-```
-
-## Configuration Examples
-
-### Setting Up OpenAI API
-
-**Via Environment Variables**:
+Each project includes Docker support:
 ```bash
-export Ai__ApiKey="sk-..."
-export Ai__Model="gpt-4"
-export Ai__Enabled="true"
+cd agents/http-agent
+docker-compose up -d
 ```
 
-**Via appsettings.json**:
-```json
-{
-  "Ai": {
-    "ApiKey": "sk-...",
-    "Model": "gpt-4",
-    "Enabled": true
-  }
-}
-```
+### Kubernetes
 
-**Via User Secrets** (recommended for development):
-```bash
-cd mcp-servers/postgres-mcp/src/PostgresMcp
-dotnet user-secrets init
-dotnet user-secrets set "Ai:ApiKey" "sk-..."
-```
-
-### Using Azure OpenAI
-
-```json
-{
-  "Ai": {
-    "ApiKey": "your-azure-key",
-    "AzureEndpoint": "https://your-resource.openai.azure.com",
-    "AzureDeploymentName": "gpt-4",
-    "Model": "gpt-4",
-    "Enabled": true
-  }
-}
-```
-
-### Security Configuration
-
-**Production Settings**:
-```json
-{
-  "Security": {
-    "EnableRateLimiting": true,
-    "RequestsPerMinute": 60,
-    "AllowedSchemas": ["public", "app"],
-    "BlockedSchemas": ["pg_catalog", "information_schema", "pg_temp"],
-    "MaxRowsPerQuery": 10000,
-    "MaxQueryExecutionSeconds": 30,
-    "AllowDataModification": false,
-    "AllowSchemaModification": false
-  }
-}
+Example deployment for HTTP Agent:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: http-agent
+  template:
+    metadata:
+      labels:
+        app: http-agent
+    spec:
+      containers:
+      - name: http-agent
+        image: adeotek/http-agent:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llm-secrets
+              key: openai-api-key
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**1. AI Features Not Working**:
-- Check if `Ai__ApiKey` is set
-- Verify `Ai__Enabled` is `true`
-- Check logs for API errors
-- Ensure network access to OpenAI API
+1. **"API key required" errors**: Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+2. **Port conflicts**: Change `PORT` environment variable
+3. **Docker build fails**: Clear cache with `docker-compose build --no-cache`
+4. **Private IP blocked**: Set `BLOCK_PRIVATE_IPS=false` for local testing
+5. **Request timeout**: Increase `HTTP_TIMEOUT` value
 
-**2. Database Connection Fails**:
-- Verify connection string format
-- Check if PostgreSQL is running
-- Ensure network connectivity
-- Verify credentials
+### Debug Mode
 
-**3. Rate Limiting Issues**:
-- Check `Security__RequestsPerMinute` setting
-- Clear rate limit cache: restart application
-- Disable rate limiting in development
-
-**4. Docker Container Issues**:
-- Check logs: `docker-compose logs`
-- Verify environment variables
-- Ensure ports are not in use
-- Check Docker network connectivity
-
-### Debugging
-
-**Enable Debug Logging**:
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Debug"
-    }
-  }
-}
-```
-
-**Check Health Status**:
+Enable debug logging:
 ```bash
-curl http://localhost:5000/health
+export GIN_MODE=debug  # For Go/Gin projects
+export LOG_LEVEL=debug # For other projects
 ```
 
-**View API Documentation**:
-```
-http://localhost:5000/scalar/v1
-```
-
-## Future Enhancements
-
-### Planned Features
-- [ ] Support for multiple database types (MySQL, SQL Server, MongoDB)
-- [ ] GraphQL endpoint for flexible querying
-- [ ] WebSocket support for real-time updates
-- [ ] Query caching and optimization
-- [ ] Built-in data visualization
-- [ ] Export to various formats (CSV, Excel, JSON)
-- [ ] Scheduled query execution
-- [ ] Query history and favorites
-
-### Potential AI Agents
-- Database optimization agent
-- Schema migration assistant
-- Data quality analyzer
-- Anomaly detection agent
-
-### Additional MCP Servers
-- MongoDB MCP Server
-- Redis MCP Server
-- Elasticsearch MCP Server
-- REST API MCP Server
-- File System MCP Server
-
-## Contributing Guidelines
+## Contributing
 
 When contributing to this repository:
 
-1. **Follow the established patterns** in existing code
-2. **Write tests** for all new functionality
-3. **Update documentation** including this file if adding new patterns
-4. **Use semantic commits**: `feat:`, `fix:`, `docs:`, `refactor:`, etc.
-5. **Ensure security**: No hardcoded secrets, proper validation
-6. **Run tests** before committing: `dotnet test`
-7. **Format code**: Use `dotnet format`
+1. Create feature branch: `git checkout -b feature/new-feature`
+2. Follow code quality standards
+3. Add tests for new functionality
+4. Update documentation
+5. Test Docker deployment
+6. Create pull request with detailed description
 
-## Additional Resources
+## Future Roadmap
 
-- [Model Context Protocol Specification](https://modelcontextprotocol.io)
-- [.NET 9 Documentation](https://docs.microsoft.com/en-us/dotnet/)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Semantic Kernel Documentation](https://learn.microsoft.com/en-us/semantic-kernel/)
-- [ASP.NET Core Documentation](https://docs.microsoft.com/en-us/aspnet/core/)
+### Planned Agents
+- [ ] PostgreSQL MCP Server (.NET 9)
+- [ ] Document Analysis Agent (Python)
+- [ ] Code Review Agent (Go)
+- [ ] Email Assistant Agent (Go)
 
-## Contact and Support
+### Planned Features
+- [ ] Request history and favorites (HTTP Agent)
+- [ ] WebSocket support (HTTP Agent)
+- [ ] Authentication and user management
+- [ ] Shared agent library for common functionality
+- [ ] CLI tools for all agents
+- [ ] Performance monitoring and metrics
 
-For questions, issues, or contributions:
-- Open an issue on GitHub
-- Follow the project guidelines
-- Join discussions in the repository
+## Resources
 
----
+- **Repository**: https://github.com/adeotek/adeotek-ai-tools
+- **Issues**: https://github.com/adeotek/adeotek-ai-tools/issues
+- **License**: MIT License
+- **OpenAI API**: https://platform.openai.com/docs
+- **Anthropic API**: https://docs.anthropic.com
+- **MCP Specification**: https://modelcontextprotocol.io
 
-**Last Updated**: 2025-11-04
-**Document Version**: 1.0.0
+## Questions for Claude
+
+When interacting with Claude about this repository, you can ask:
+
+- "How do I add a new agent to the repository?"
+- "What's the architecture of the HTTP agent?"
+- "How do I configure the LLM provider?"
+- "What security measures are in place?"
+- "How do I deploy an agent with Docker?"
+- "What are the code quality standards?"
+- "How do I test the HTTP agent?"
+- "What's the roadmap for this repository?"
+
+Claude has full context from this document and can help with development, debugging, and architecture decisions for all projects in this repository.
