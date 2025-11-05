@@ -39,7 +39,7 @@ adeotek-ai-tools/
 
 ### 1. Intelligent HTTP Agent (`/agents/http-agent`)
 
-**Technology Stack**: Go 1.23+, Gin web framework, Multiple LLM providers
+**Technology Stack**: Go 1.24.7+, Gin web framework, Multiple LLM providers
 
 **Purpose**: An AI-powered HTTP request tool that acts as an intelligent `curl` alternative. It makes HTTP/HTTPS requests and provides natural language analysis of the results.
 
