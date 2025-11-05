@@ -18,7 +18,7 @@ An AI-powered HTTP request tool that understands natural language prompts and pr
 
 ### Prerequisites
 
-- Go 1.23+ (for local development)
+- Go 1.24.7+ (for local development)
 - Docker & Docker Compose (for containerized deployment)
 - OpenAI API key or Anthropic API key
 
