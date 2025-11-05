@@ -62,7 +62,7 @@ AI-powered SQL generation with validation and optimization.
 
 2. **Access the services**:
    - **MCP Server API**: http://localhost:5000
-   - **Swagger UI**: http://localhost:5000/swagger
+   - **API Documentation**: http://localhost:5000/scalar/v1
    - **PostgreSQL**: localhost:5432 (postgres/postgres123)
    - **pgAdmin**: http://localhost:8080 (admin@admin.com/admin)
 

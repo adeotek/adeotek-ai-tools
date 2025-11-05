@@ -108,30 +108,8 @@ if (securityOptions?.EnableRateLimiting == true)
     Log.Information("Rate limiting enabled: {RequestsPerMinute} requests per minute", securityOptions.RequestsPerMinute);
 }
 
-// Configure Swagger/OpenAPI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new()
-    {
-        Title = "PostgreSQL MCP Server",
-        Version = "v1",
-        Description = "Model Context Protocol server for PostgreSQL database operations with AI-powered query generation",
-        Contact = new()
-        {
-            Name = "PostgreSQL MCP Server",
-            Url = new Uri("https://github.com/yourusername/ai-tools")
-        }
-    });
-
-    // Include XML comments if available
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        c.IncludeXmlComments(xmlPath);
-    }
-});
+// Configure OpenAPI
+builder.Services.AddOpenApi();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -150,15 +128,14 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "PostgreSQL MCP Server v1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI at root
-    });
-}
+    options
+        .WithTitle("PostgreSQL MCP Server")
+        .WithTheme(ScalarTheme.Purple)
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
 
 app.UseSerilogRequestLogging();
 
@@ -188,9 +165,9 @@ app.MapGet("/", () => Results.Json(new
         call = "/mcp/tools/call",
         jsonrpc = "/mcp/jsonrpc",
         health = "/health",
-        swagger = "/swagger"
+        documentation = "/scalar/v1"
     },
-    documentation = "/swagger"
+    documentation = "/scalar/v1"
 }));
 
 Log.Information("Starting PostgreSQL MCP Server");

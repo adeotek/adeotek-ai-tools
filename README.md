@@ -41,7 +41,7 @@ docker-compose up -d
 
 # The server will be available at:
 # - API: http://localhost:5000
-# - Swagger: http://localhost:5000/swagger
+# - API Documentation: http://localhost:5000/scalar/v1
 # - pgAdmin: http://localhost:8080
 ```
 
@@ -111,7 +111,7 @@ curl -X POST http://localhost:5000/mcp/tools/call \
 
 - **[CLAUDE.md](CLAUDE.md)**: Comprehensive guide for AI assistants and developers
 - **[PostgreSQL MCP Server README](mcp-servers/postgres-mcp/README.md)**: Detailed project documentation
-- **Swagger UI**: Available at `http://localhost:5000/swagger` when running
+- **API Documentation**: Available at `http://localhost:5000/scalar/v1` when running
 
 ## Security
 

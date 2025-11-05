@@ -163,7 +163,7 @@ Security__EnableRateLimiting=false
 
 4. **Add Documentation**:
    - Project-specific README.md
-   - API documentation with Swagger
+   - API documentation with Scalar
    - XML documentation comments in code
 
 5. **Create Tests**:
@@ -461,9 +461,9 @@ dotnet user-secrets set "Ai:ApiKey" "sk-..."
 curl http://localhost:5000/health
 ```
 
-**View Swagger Documentation**:
+**View API Documentation**:
 ```
-http://localhost:5000/swagger
+http://localhost:5000/scalar/v1
 ```
 
 ## Future Enhancements
