@@ -93,9 +93,9 @@ func loadConfig() (*models.Config, error) {
 	viper.SetDefault("http.timeout", 30)
 	viper.SetDefault("http.follow_redirects", true)
 	viper.SetDefault("http.max_redirects", 10)
-	viper.SetDefault("http.verify_ssl", true)
+	viper.SetDefault("http.verify_ssl", false)
 	viper.SetDefault("http.max_response_size", 10485760) // 10MB
-	viper.SetDefault("http.block_private_ips", true)
+	viper.SetDefault("http.block_private_ips", false)
 
 	// Config file
 	viper.SetConfigName("config")
@@ -120,6 +120,10 @@ func loadConfig() (*models.Config, error) {
 	viper.BindEnv("llm.api_key", "LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
 	viper.BindEnv("llm.model", "LLM_MODEL")
 	viper.BindEnv("llm.base_url", "HTTP_AGENT_LLM_BASE_URL")
+	viper.BindEnv("llm.model", "LLM_MODEL")
+	viper.BindEnv("http.timeout", "HTTP_TIMEOUT")
+	viper.BindEnv("http.verify_ssl", "VERIFY_SSL")
+	viper.BindEnv("http.block_private_ips", "BLOCK_PRIVATE_IPS")
 
 	var config models.Config
 	if err := viper.Unmarshal(&config); err != nil {
