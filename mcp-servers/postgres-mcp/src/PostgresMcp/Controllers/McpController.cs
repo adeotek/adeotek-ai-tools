@@ -57,7 +57,7 @@ public class McpController(
                             description = "Optional natural language question about the schema (e.g., 'What tables have foreign keys to the users table?')"
                         }
                     },
-                    required = ["connectionString"]
+                    required = new[] { "connectionString" }
                 }
             },
             new McpTool
@@ -80,7 +80,7 @@ public class McpController(
                             description = "Natural language query describing what data to retrieve (e.g., 'Show me all users who made orders in the last 30 days with their order totals')"
                         }
                     },
-                    required = ["connectionString", "query"]
+                    required = new[] { "connectionString", "query" }
                 }
             },
             new McpTool
@@ -103,7 +103,7 @@ public class McpController(
                             description = "Detailed natural language description of the desired query (e.g., 'Calculate the average order value by customer segment for Q4 2024, showing only segments with more than 100 orders')"
                         }
                     },
-                    required = ["connectionString", "naturalLanguageQuery"]
+                    required = new[] { "connectionString", "naturalLanguageQuery" }
                 }
             }
         ];
