@@ -125,6 +125,6 @@ public class McpControllerTests
         var result = await _controller.CallTool(request, CancellationToken.None);
 
         // Assert
-        result.Should().Match<IActionResult>(r => r is StatusCodeResult or ObjectResult);
+        result.Should().Match<IActionResult>(r => r is StatusCodeResult || r is ObjectResult);
     }
 }
