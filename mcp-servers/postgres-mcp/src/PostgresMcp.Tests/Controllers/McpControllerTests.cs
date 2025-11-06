@@ -89,7 +89,7 @@ public class McpControllerTests
         var request = new McpToolCallRequest
         {
             Name = "unknown_tool",
-            Arguments = new Dictionary<string, object?>()
+            Arguments = []
         };
 
         // Act
@@ -118,7 +118,7 @@ public class McpControllerTests
         var request = new McpToolCallRequest
         {
             Name = "scan_database_structure",
-            Arguments = new Dictionary<string, object?>() // Missing connectionString
+            Arguments = [] // Missing connectionString
         };
 
         // Act

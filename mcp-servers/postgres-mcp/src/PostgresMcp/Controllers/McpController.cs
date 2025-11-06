@@ -11,24 +11,16 @@ namespace PostgresMcp.Controllers;
 /// </summary>
 [ApiController]
 [Route("mcp")]
-public class McpController : ControllerBase
+public class McpController(
+    ILogger<McpController> logger,
+    IDatabaseSchemaService schemaService,
+    IQueryService queryService,
+    ISqlGenerationService sqlGenerationService) : ControllerBase
 {
-    private readonly ILogger<McpController> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly IQueryService _queryService;
-    private readonly ISqlGenerationService _sqlGenerationService;
-
-    public McpController(
-        ILogger<McpController> logger,
-        IDatabaseSchemaService schemaService,
-        IQueryService queryService,
-        ISqlGenerationService sqlGenerationService)
-    {
-        _logger = logger;
-        _schemaService = schemaService;
-        _queryService = queryService;
-        _sqlGenerationService = sqlGenerationService;
-    }
+    private readonly ILogger<McpController> _logger = logger;
+    private readonly IDatabaseSchemaService _schemaService = schemaService;
+    private readonly IQueryService _queryService = queryService;
+    private readonly ISqlGenerationService _sqlGenerationService = sqlGenerationService;
 
     /// <summary>
     /// Lists all available MCP tools.
@@ -38,8 +30,8 @@ public class McpController : ControllerBase
     [ProducesResponseType(typeof(McpListToolsResponse), StatusCodes.Status200OK)]
     public IActionResult ListTools()
     {
-        var tools = new List<McpTool>
-        {
+        List<McpTool> tools =
+        [
             new McpTool
             {
                 Name = "scan_database_structure",
@@ -65,7 +57,7 @@ public class McpController : ControllerBase
                             description = "Optional natural language question about the schema (e.g., 'What tables have foreign keys to the users table?')"
                         }
                     },
-                    required = new[] { "connectionString" }
+                    required = ["connectionString"]
                 }
             },
             new McpTool
@@ -88,7 +80,7 @@ public class McpController : ControllerBase
                             description = "Natural language query describing what data to retrieve (e.g., 'Show me all users who made orders in the last 30 days with their order totals')"
                         }
                     },
-                    required = new[] { "connectionString", "query" }
+                    required = ["connectionString", "query"]
                 }
             },
             new McpTool
@@ -111,10 +103,10 @@ public class McpController : ControllerBase
                             description = "Detailed natural language description of the desired query (e.g., 'Calculate the average order value by customer segment for Q4 2024, showing only segments with more than 100 orders')"
                         }
                     },
-                    required = new[] { "connectionString", "naturalLanguageQuery" }
+                    required = ["connectionString", "naturalLanguageQuery"]
                 }
             }
-        };
+        ];
 
         return Ok(new McpListToolsResponse { Tools = tools });
     }

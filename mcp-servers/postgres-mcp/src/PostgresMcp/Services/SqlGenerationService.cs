@@ -8,30 +8,20 @@ namespace PostgresMcp.Services;
 /// <summary>
 /// Service for generating SQL queries from natural language using AI.
 /// </summary>
-public class SqlGenerationService : ISqlGenerationService
+public class SqlGenerationService(
+    ILogger<SqlGenerationService> logger,
+    IDatabaseSchemaService schemaService,
+    IQueryService queryService,
+    IOptions<SecurityOptions> securityOptions,
+    IOptions<AiOptions> aiOptions,
+    Kernel? kernel = null) : ISqlGenerationService
 {
-    private readonly ILogger<SqlGenerationService> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly IQueryService _queryService;
-    private readonly SecurityOptions _securityOptions;
-    private readonly AiOptions _aiOptions;
-    private readonly Kernel? _kernel;
-
-    public SqlGenerationService(
-        ILogger<SqlGenerationService> logger,
-        IDatabaseSchemaService schemaService,
-        IQueryService queryService,
-        IOptions<SecurityOptions> securityOptions,
-        IOptions<AiOptions> aiOptions,
-        Kernel? kernel = null)
-    {
-        _logger = logger;
-        _schemaService = schemaService;
-        _queryService = queryService;
-        _securityOptions = securityOptions.Value;
-        _aiOptions = aiOptions.Value;
-        _kernel = kernel;
-    }
+    private readonly ILogger<SqlGenerationService> _logger = logger;
+    private readonly IDatabaseSchemaService _schemaService = schemaService;
+    private readonly IQueryService _queryService = queryService;
+    private readonly SecurityOptions _securityOptions = securityOptions.Value;
+    private readonly AiOptions _aiOptions = aiOptions.Value;
+    private readonly Kernel? _kernel = kernel;
 
     /// <inheritdoc/>
     public async Task<SqlGenerationResult> GenerateAndExecuteQueryAsync(
@@ -71,13 +61,13 @@ public class SqlGenerationService : ISqlGenerationService
                 Explanation = explanation,
                 IsSafe = false,
                 ConfidenceScore = confidence,
-                Warnings = new List<string> { "Query failed safety validation" }
+                Warnings = ["Query failed safety validation"]
             };
         }
 
         // Optimize query
         var optimizedSql = await OptimizeQueryAsync(sqlQuery, cancellationToken);
-        var warnings = new List<string>();
+        List<string> warnings = [];
         if (optimizedSql != sqlQuery)
         {
             warnings.Add("Query was optimized for better performance");
@@ -124,25 +114,25 @@ public class SqlGenerationService : ISqlGenerationService
             }
 
             // Check for data modification keywords
-            var dataModificationKeywords = new[] { "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE" };
+            string[] dataModificationKeywords = ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE"];
             if (dataModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
             {
                 return false;
             }
 
             // Check for schema modification keywords
-            var schemaModificationKeywords = new[] { "CREATE", "ALTER", "DROP", "RENAME" };
+            string[] schemaModificationKeywords = ["CREATE", "ALTER", "DROP", "RENAME"];
             if (schemaModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
             {
                 return false;
             }
 
             // Check for dangerous functions
-            var dangerousFunctions = new[]
-            {
+            string[] dangerousFunctions =
+            [
                 "pg_read_file", "pg_write_file", "pg_ls_dir", "COPY",
                 "pg_execute", "pg_read_binary_file", "pg_stat_file"
-            };
+            ];
             if (dangerousFunctions.Any(func => normalizedQuery.Contains(func.ToUpperInvariant())))
             {
                 return false;
@@ -295,12 +285,12 @@ public class SqlGenerationService : ISqlGenerationService
             schemaText.AppendLine("  Columns:");
             foreach (var col in table.Columns)
             {
-                var attrs = new List<string>();
+                List<string> attrs = [];
                 if (!col.IsNullable) attrs.Add("NOT NULL");
                 if (col.IsIdentity) attrs.Add("IDENTITY");
                 if (col.DefaultValue != null) attrs.Add($"DEFAULT {col.DefaultValue}");
 
-                var attrsStr = attrs.Any() ? $" ({string.Join(", ", attrs)})" : "";
+                var attrsStr = attrs.Count != 0 ? $" ({string.Join(", ", attrs)})" : "";
                 schemaText.AppendLine($"    {col.ColumnName}: {col.DataType}{attrsStr}");
             }
 

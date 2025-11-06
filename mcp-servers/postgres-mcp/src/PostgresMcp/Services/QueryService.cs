@@ -12,24 +12,16 @@ namespace PostgresMcp.Services;
 /// <summary>
 /// Service for executing database queries with relationship awareness.
 /// </summary>
-public class QueryService : IQueryService
+public class QueryService(
+    ILogger<QueryService> logger,
+    IDatabaseSchemaService schemaService,
+    IOptions<SecurityOptions> securityOptions,
+    Kernel? kernel = null) : IQueryService
 {
-    private readonly ILogger<QueryService> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly SecurityOptions _securityOptions;
-    private readonly Kernel? _kernel;
-
-    public QueryService(
-        ILogger<QueryService> logger,
-        IDatabaseSchemaService schemaService,
-        IOptions<SecurityOptions> securityOptions,
-        Kernel? kernel = null)
-    {
-        _logger = logger;
-        _schemaService = schemaService;
-        _securityOptions = securityOptions.Value;
-        _kernel = kernel;
-    }
+    private readonly ILogger<QueryService> _logger = logger;
+    private readonly IDatabaseSchemaService _schemaService = schemaService;
+    private readonly SecurityOptions _securityOptions = securityOptions.Value;
+    private readonly Kernel? _kernel = kernel;
 
     /// <inheritdoc/>
     public async Task<QueryResult> QueryDataAsync(
@@ -85,13 +77,13 @@ public class QueryService : IQueryService
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
-        var columns = new List<string>();
+        List<string> columns = [];
         for (int i = 0; i < reader.FieldCount; i++)
         {
             columns.Add(reader.GetName(i));
         }
 
-        var rows = new List<Dictionary<string, object?>>();
+        List<Dictionary<string, object?>> rows = [];
         while (await reader.ReadAsync(cancellationToken))
         {
             var row = new Dictionary<string, object?>();
@@ -170,7 +162,7 @@ public class QueryService : IQueryService
         // Check for data modification
         if (!_securityOptions.AllowDataModification)
         {
-            var dataModificationKeywords = new[] { "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE" };
+            string[] dataModificationKeywords = ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE"];
             foreach (var keyword in dataModificationKeywords)
             {
                 if (Regex.IsMatch(normalizedQuery, $@"\b{keyword}\b"))
@@ -184,7 +176,7 @@ public class QueryService : IQueryService
         // Check for schema modification
         if (!_securityOptions.AllowSchemaModification)
         {
-            var schemaModificationKeywords = new[] { "CREATE", "ALTER", "DROP", "RENAME" };
+            string[] schemaModificationKeywords = ["CREATE", "ALTER", "DROP", "RENAME"];
             foreach (var keyword in schemaModificationKeywords)
             {
                 if (Regex.IsMatch(normalizedQuery, $@"\b{keyword}\b"))
@@ -196,7 +188,7 @@ public class QueryService : IQueryService
         }
 
         // Check for dangerous functions
-        var dangerousFunctions = new[] { "pg_read_file", "pg_write_file", "pg_ls_dir", "COPY" };
+        string[] dangerousFunctions = ["pg_read_file", "pg_write_file", "pg_ls_dir", "COPY"];
         foreach (var func in dangerousFunctions)
         {
             if (normalizedQuery.Contains(func.ToUpperInvariant()))
@@ -242,14 +234,14 @@ public class QueryService : IQueryService
 
     private List<string> ExtractTableNames(string sqlQuery)
     {
-        var tables = new List<string>();
+        List<string> tables = [];
 
         // Match table names in FROM and JOIN clauses
-        var patterns = new[]
-        {
+        string[] patterns =
+        [
             @"\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)",
             @"\bJOIN\s+([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)"
-        };
+        ];
 
         foreach (var pattern in patterns)
         {

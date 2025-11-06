@@ -10,21 +10,14 @@ namespace PostgresMcp.Services;
 /// <summary>
 /// Service for scanning and analyzing PostgreSQL database schema.
 /// </summary>
-public class DatabaseSchemaService : IDatabaseSchemaService
+public class DatabaseSchemaService(
+    ILogger<DatabaseSchemaService> logger,
+    IOptions<SecurityOptions> securityOptions,
+    Kernel? kernel = null) : IDatabaseSchemaService
 {
-    private readonly ILogger<DatabaseSchemaService> _logger;
-    private readonly SecurityOptions _securityOptions;
-    private readonly Kernel? _kernel;
-
-    public DatabaseSchemaService(
-        ILogger<DatabaseSchemaService> logger,
-        IOptions<SecurityOptions> securityOptions,
-        Kernel? kernel = null)
-    {
-        _logger = logger;
-        _securityOptions = securityOptions.Value;
-        _kernel = kernel;
-    }
+    private readonly ILogger<DatabaseSchemaService> _logger = logger;
+    private readonly SecurityOptions _securityOptions = securityOptions.Value;
+    private readonly Kernel? _kernel = kernel;
 
     /// <inheritdoc/>
     public async Task<DatabaseSchema> ScanDatabaseSchemaAsync(
@@ -108,7 +101,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string? schemaFilter,
         CancellationToken cancellationToken)
     {
-        var tables = new List<TableInfo>();
+        List<TableInfo> tables = [];
 
         var sql = """
             SELECT
@@ -144,7 +137,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
             {
                 SchemaName = schemaName,
                 TableName = tableName,
-                Columns = new List<ColumnInfo>(),
+                Columns = [],
                 RowCount = reader.IsDBNull(2) ? null : reader.GetInt64(2),
                 SizeInBytes = reader.IsDBNull(3) ? null : reader.GetInt64(3),
                 Comment = reader.IsDBNull(4) ? null : reader.GetString(4)
@@ -171,7 +164,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string tableName,
         CancellationToken cancellationToken)
     {
-        var columns = new List<ColumnInfo>();
+        List<ColumnInfo> columns = [];
 
         var sql = """
             SELECT
@@ -259,7 +252,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string tableName,
         CancellationToken cancellationToken)
     {
-        var foreignKeys = new List<ForeignKeyInfo>();
+        List<ForeignKeyInfo> foreignKeys = [];
 
         var sql = """
             SELECT
@@ -313,7 +306,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string tableName,
         CancellationToken cancellationToken)
     {
-        var indexes = new List<IndexInfo>();
+        List<IndexInfo> indexes = [];
 
         var sql = """
             SELECT
@@ -359,7 +352,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string? schemaFilter,
         CancellationToken cancellationToken)
     {
-        var views = new List<ViewInfo>();
+        List<ViewInfo> views = [];
 
         var sql = """
             SELECT
@@ -399,7 +392,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
         string? schemaFilter,
         CancellationToken cancellationToken)
     {
-        var relationships = new List<Relationship>();
+        List<Relationship> relationships = [];
 
         var sql = """
             SELECT
@@ -497,7 +490,7 @@ public class DatabaseSchemaService : IDatabaseSchemaService
             sb.AppendLine("Columns:");
             foreach (var col in table.Columns)
             {
-                var parts = new List<string> { col.ColumnName, col.DataType };
+                List<string> parts = [col.ColumnName, col.DataType];
                 if (!col.IsNullable) parts.Add("NOT NULL");
                 if (col.IsIdentity) parts.Add("IDENTITY");
                 if (!string.IsNullOrEmpty(col.DefaultValue)) parts.Add($"DEFAULT {col.DefaultValue}");
