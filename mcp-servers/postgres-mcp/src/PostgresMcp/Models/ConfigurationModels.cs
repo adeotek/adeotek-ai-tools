@@ -43,7 +43,7 @@ public class PostgresOptions
     /// <summary>
     /// Minimum size of connection pool.
     /// </summary>
-    public int MinPoolSize { get; set; } = 0;
+    public int MinPoolSize { get; set; }
 }
 
 /// <summary>
@@ -115,17 +115,17 @@ public class SecurityOptions
     /// <summary>
     /// List of allowed schemas (empty means all allowed).
     /// </summary>
-    public List<string> AllowedSchemas { get; set; } = new();
+    public List<string> AllowedSchemas { get; set; } = [];
 
     /// <summary>
     /// List of blocked schemas.
     /// </summary>
-    public List<string> BlockedSchemas { get; set; } = new() { "pg_catalog", "information_schema" };
+    public List<string> BlockedSchemas { get; set; } = ["pg_catalog", "information_schema"];
 
     /// <summary>
     /// List of blocked tables (regex patterns).
     /// </summary>
-    public List<string> BlockedTables { get; set; } = new();
+    public List<string> BlockedTables { get; set; } = [];
 
     /// <summary>
     /// Maximum number of rows to return in a single query.
@@ -140,12 +140,12 @@ public class SecurityOptions
     /// <summary>
     /// Whether to allow data modification queries (UPDATE, DELETE, INSERT).
     /// </summary>
-    public bool AllowDataModification { get; set; } = false;
+    public bool AllowDataModification { get; set; }
 
     /// <summary>
     /// Whether to allow schema modification queries (CREATE, ALTER, DROP).
     /// </summary>
-    public bool AllowSchemaModification { get; set; } = false;
+    public bool AllowSchemaModification { get; set; }
 }
 
 /// <summary>
@@ -166,7 +166,7 @@ public class LoggingOptions
     /// <summary>
     /// Whether to log query results.
     /// </summary>
-    public bool LogResults { get; set; } = false;
+    public bool LogResults { get; set; }
 
     /// <summary>
     /// Whether to log AI prompts and responses.

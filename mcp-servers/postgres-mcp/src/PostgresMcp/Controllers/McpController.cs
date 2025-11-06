@@ -17,11 +17,6 @@ public class McpController(
     IQueryService queryService,
     ISqlGenerationService sqlGenerationService) : ControllerBase
 {
-    private readonly ILogger<McpController> _logger = logger;
-    private readonly IDatabaseSchemaService _schemaService = schemaService;
-    private readonly IQueryService _queryService = queryService;
-    private readonly ISqlGenerationService _sqlGenerationService = sqlGenerationService;
-
     /// <summary>
     /// Lists all available MCP tools.
     /// Endpoint: GET /mcp/tools
@@ -125,7 +120,7 @@ public class McpController(
     {
         try
         {
-            _logger.LogInformation("Calling MCP tool: {ToolName}", request.Name);
+            logger.LogInformation("Calling MCP tool: {ToolName}", request.Name);
 
             var result = request.Name switch
             {
@@ -143,7 +138,7 @@ public class McpController(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing tool: {ToolName}", request.Name);
+            logger.LogError(ex, "Error executing tool: {ToolName}", request.Name);
 
             return StatusCode(500, new McpToolCallResponse
             {
@@ -165,7 +160,7 @@ public class McpController(
     {
         try
         {
-            _logger.LogInformation("JSON-RPC call: {Method}", request.Method);
+            logger.LogInformation("JSON-RPC call: {Method}", request.Method);
 
             object? result = request.Method switch
             {
@@ -195,7 +190,7 @@ public class McpController(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "JSON-RPC error");
+            logger.LogError(ex, "JSON-RPC error");
 
             return Ok(new JsonRpcResponse
             {
@@ -235,7 +230,7 @@ public class McpController(
         if (!string.IsNullOrEmpty(question))
         {
             // Answer a specific question about the schema
-            var answer = await _schemaService.AnswerSchemaQuestionAsync(
+            var answer = await schemaService.AnswerSchemaQuestionAsync(
                 connectionString,
                 question,
                 cancellationToken);
@@ -253,7 +248,7 @@ public class McpController(
         }
 
         // Scan the entire schema
-        var schema = await _schemaService.ScanDatabaseSchemaAsync(
+        var schema = await schemaService.ScanDatabaseSchemaAsync(
             connectionString,
             schemaFilter,
             cancellationToken);
@@ -278,7 +273,7 @@ public class McpController(
         var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
         var query = GetRequiredArgument<string>(arguments, "query");
 
-        var result = await _queryService.QueryDataAsync(
+        var result = await queryService.QueryDataAsync(
             connectionString,
             query,
             cancellationToken);
@@ -303,7 +298,7 @@ public class McpController(
         var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
         var naturalLanguageQuery = GetRequiredArgument<string>(arguments, "naturalLanguageQuery");
 
-        var result = await _sqlGenerationService.GenerateAndExecuteQueryAsync(
+        var result = await sqlGenerationService.GenerateAndExecuteQueryAsync(
             connectionString,
             naturalLanguageQuery,
             cancellationToken);
@@ -357,7 +352,7 @@ public class McpController(
         }
     }
 
-    private T GetRequiredArgument<T>(Dictionary<string, object?> arguments, string key)
+    private static T GetRequiredArgument<T>(Dictionary<string, object?> arguments, string key)
     {
         if (!arguments.TryGetValue(key, out var value) || value == null)
         {
@@ -386,7 +381,7 @@ public class McpController(
         }
     }
 
-    private T? GetOptionalArgument<T>(Dictionary<string, object?> arguments, string key)
+    private static T? GetOptionalArgument<T>(Dictionary<string, object?> arguments, string key)
     {
         try
         {

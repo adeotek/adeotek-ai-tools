@@ -1,5 +1,4 @@
 using AspNetCoreRateLimit;
-using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
@@ -70,7 +69,7 @@ if (aiOptions?.Enabled == true && !string.IsNullOrEmpty(aiOptions.ApiKey))
 else
 {
     Log.Warning("AI features are disabled or not configured");
-    builder.Services.AddSingleton<Kernel>(provider => null!);
+    builder.Services.AddSingleton<Kernel>(_ => null!);
 }
 
 // Register application services
@@ -90,15 +89,15 @@ if (securityOptions?.EnableRateLimiting == true)
         options.HttpStatusCode = 429;
         options.RealIpHeader = "X-Real-IP";
         options.ClientIdHeader = "X-ClientId";
-        options.GeneralRules = new List<RateLimitRule>
-        {
+        options.GeneralRules =
+        [
             new RateLimitRule
             {
                 Endpoint = "*",
                 Period = "1m",
                 Limit = securityOptions.RequestsPerMinute
             }
-        };
+        ];
     });
 
     builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
@@ -134,7 +133,7 @@ app.MapScalarApiReference(options =>
 {
     options
         .WithTitle("PostgreSQL MCP Server")
-        .WithTheme(ScalarTheme.Purple)
+        .WithTheme(ScalarTheme.Default)
         .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 

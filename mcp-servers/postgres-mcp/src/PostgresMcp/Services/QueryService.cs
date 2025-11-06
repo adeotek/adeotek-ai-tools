@@ -2,7 +2,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Npgsql;
 using PostgresMcp.Models;
-using System.Data;
 using System.Diagnostics;
 using System.Security;
 using System.Text.RegularExpressions;
@@ -18,10 +17,7 @@ public class QueryService(
     IOptions<SecurityOptions> securityOptions,
     Kernel? kernel = null) : IQueryService
 {
-    private readonly ILogger<QueryService> _logger = logger;
-    private readonly IDatabaseSchemaService _schemaService = schemaService;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
-    private readonly Kernel? _kernel = kernel;
 
     /// <inheritdoc/>
     public async Task<QueryResult> QueryDataAsync(
@@ -29,10 +25,10 @@ public class QueryService(
         string naturalLanguageQuery,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Processing natural language query: {Query}", naturalLanguageQuery);
+        logger.LogInformation("Processing natural language query: {Query}", naturalLanguageQuery);
 
         // Get schema context
-        var schema = await _schemaService.ScanDatabaseSchemaAsync(
+        var schema = await schemaService.ScanDatabaseSchemaAsync(
             connectionString,
             null,
             cancellationToken);
@@ -43,7 +39,7 @@ public class QueryService(
             naturalLanguageQuery,
             cancellationToken);
 
-        _logger.LogInformation("Generated SQL: {Sql}", sqlQuery);
+        logger.LogInformation("Generated SQL: {Sql}", sqlQuery);
 
         // Execute the query
         return await ExecuteQueryAsync(connectionString, sqlQuery, cancellationToken);
@@ -55,7 +51,7 @@ public class QueryService(
         string sqlQuery,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Executing SQL query");
+        logger.LogInformation("Executing SQL query");
 
         // Validate query safety
         ValidateQuerySafety(sqlQuery);
@@ -66,10 +62,8 @@ public class QueryService(
         await connection.OpenAsync(cancellationToken);
 
         // Apply query timeout
-        await using var cmd = new NpgsqlCommand(sqlQuery, connection)
-        {
-            CommandTimeout = _securityOptions.MaxQueryExecutionSeconds
-        };
+        await using var cmd = new NpgsqlCommand(sqlQuery, connection);
+        cmd.CommandTimeout = _securityOptions.MaxQueryExecutionSeconds;
 
         // Add row limit if not present
         var limitedQuery = EnsureRowLimit(sqlQuery, _securityOptions.MaxRowsPerQuery);
@@ -117,7 +111,7 @@ public class QueryService(
         string naturalLanguageQuery,
         CancellationToken cancellationToken)
     {
-        if (_kernel == null)
+        if (kernel == null)
         {
             throw new InvalidOperationException(
                 "AI features are not configured. Cannot generate SQL from natural language.");
@@ -145,7 +139,7 @@ public class QueryService(
             SQL Query:
             """;
 
-        var response = await _kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
+        var response = await kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
         var sql = response.ToString().Trim();
 
         // Clean up the response (remove markdown code blocks if present)

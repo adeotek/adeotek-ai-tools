@@ -14,14 +14,11 @@ public class SqlGenerationService(
     IQueryService queryService,
     IOptions<SecurityOptions> securityOptions,
     IOptions<AiOptions> aiOptions,
-    Kernel? kernel = null) : ISqlGenerationService
+    Kernel? kernel = null)
+    : ISqlGenerationService
 {
-    private readonly ILogger<SqlGenerationService> _logger = logger;
-    private readonly IDatabaseSchemaService _schemaService = schemaService;
-    private readonly IQueryService _queryService = queryService;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
     private readonly AiOptions _aiOptions = aiOptions.Value;
-    private readonly Kernel? _kernel = kernel;
 
     /// <inheritdoc/>
     public async Task<SqlGenerationResult> GenerateAndExecuteQueryAsync(
@@ -29,16 +26,16 @@ public class SqlGenerationService(
         string naturalLanguageQuery,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating SQL from natural language: {Query}", naturalLanguageQuery);
+        logger.LogInformation("Generating SQL from natural language: {Query}", naturalLanguageQuery);
 
-        if (_kernel == null || !_aiOptions.Enabled)
+        if (kernel == null || !_aiOptions.Enabled)
         {
             throw new InvalidOperationException(
                 "AI features are not configured or disabled. Cannot generate SQL from natural language.");
         }
 
         // Get database schema
-        var schema = await _schemaService.ScanDatabaseSchemaAsync(
+        var schema = await schemaService.ScanDatabaseSchemaAsync(
             connectionString,
             null,
             cancellationToken);
@@ -49,7 +46,7 @@ public class SqlGenerationService(
             naturalLanguageQuery,
             cancellationToken);
 
-        _logger.LogInformation("Generated SQL: {Sql}", sqlQuery);
+        logger.LogInformation("Generated SQL: {Sql}", sqlQuery);
 
         // Validate safety
         var isSafe = ValidateSqlSafety(sqlQuery);
@@ -78,14 +75,14 @@ public class SqlGenerationService(
         QueryResult? results = null;
         try
         {
-            results = await _queryService.ExecuteQueryAsync(
+            results = await queryService.ExecuteQueryAsync(
                 connectionString,
                 sqlQuery,
                 cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing generated SQL");
+            logger.LogError(ex, "Error executing generated SQL");
             warnings.Add($"Execution error: {ex.Message}");
         }
 
@@ -115,14 +112,14 @@ public class SqlGenerationService(
 
             // Check for data modification keywords
             string[] dataModificationKeywords = ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE"];
-            if (dataModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            if (!_securityOptions.AllowDataModification && dataModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
             {
                 return false;
             }
 
             // Check for schema modification keywords
             string[] schemaModificationKeywords = ["CREATE", "ALTER", "DROP", "RENAME"];
-            if (schemaModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            if (!_securityOptions.AllowSchemaModification && schemaModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
             {
                 return false;
             }
@@ -133,7 +130,7 @@ public class SqlGenerationService(
                 "pg_read_file", "pg_write_file", "pg_ls_dir", "COPY",
                 "pg_execute", "pg_read_binary_file", "pg_stat_file"
             ];
-            if (dangerousFunctions.Any(func => normalizedQuery.Contains(func.ToUpperInvariant())))
+            if (dangerousFunctions.Any(func => normalizedQuery.Contains(func, StringComparison.InvariantCultureIgnoreCase)))
             {
                 return false;
             }
@@ -148,7 +145,7 @@ public class SqlGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating SQL safety");
+            logger.LogError(ex, "Error validating SQL safety");
             return false;
         }
     }
@@ -158,7 +155,7 @@ public class SqlGenerationService(
         string sqlQuery,
         CancellationToken cancellationToken = default)
     {
-        if (_kernel == null || !_aiOptions.Enabled)
+        if (kernel == null || !_aiOptions.Enabled)
         {
             return sqlQuery;
         }
@@ -184,7 +181,7 @@ public class SqlGenerationService(
                 If the query is already optimal, return it unchanged.
                 """;
 
-            var response = await _kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
+            var response = await kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
             var optimizedSql = response.ToString().Trim();
 
             // Clean up markdown if present
@@ -194,7 +191,7 @@ public class SqlGenerationService(
             // Validate the optimized query is still safe
             if (!ValidateSqlSafety(optimizedSql))
             {
-                _logger.LogWarning("Optimized query failed safety validation, returning original");
+                logger.LogWarning("Optimized query failed safety validation, returning original");
                 return sqlQuery;
             }
 
@@ -202,7 +199,7 @@ public class SqlGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error optimizing query, returning original");
+            logger.LogError(ex, "Error optimizing query, returning original");
             return sqlQuery;
         }
     }
@@ -212,7 +209,7 @@ public class SqlGenerationService(
         string naturalLanguageQuery,
         CancellationToken cancellationToken)
     {
-        if (_kernel == null)
+        if (kernel == null)
         {
             throw new InvalidOperationException("AI kernel is not configured");
         }
@@ -246,7 +243,7 @@ public class SqlGenerationService(
             <confidence score from 0.0 to 1.0>
             """;
 
-        var response = await _kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
+        var response = await kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
         var responseText = response.ToString();
 
         // Parse the response

@@ -8,23 +8,16 @@ namespace PostgresMcp.Tests.Services;
 
 public class QueryServiceTests
 {
-    private readonly ILogger<QueryService> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly IOptions<SecurityOptions> _securityOptions;
+    private readonly ILogger<QueryService> _logger = Substitute.For<ILogger<QueryService>>();
+    private readonly IDatabaseSchemaService _schemaService = Substitute.For<IDatabaseSchemaService>();
 
-    public QueryServiceTests()
+    private readonly IOptions<SecurityOptions> _securityOptions = Options.Create(new SecurityOptions
     {
-        _logger = Substitute.For<ILogger<QueryService>>();
-        _schemaService = Substitute.For<IDatabaseSchemaService>();
-
-        _securityOptions = Options.Create(new SecurityOptions
-        {
-            MaxRowsPerQuery = 1000,
-            MaxQueryExecutionSeconds = 30,
-            AllowDataModification = false,
-            AllowSchemaModification = false
-        });
-    }
+        MaxRowsPerQuery = 1000,
+        MaxQueryExecutionSeconds = 30,
+        AllowDataModification = false,
+        AllowSchemaModification = false
+    });
 
     [Fact]
     public void Constructor_ShouldInitializeSuccessfully()

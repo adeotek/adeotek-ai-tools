@@ -8,30 +8,21 @@ namespace PostgresMcp.Tests.Services;
 
 public class SqlGenerationServiceTests
 {
-    private readonly ILogger<SqlGenerationService> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly IQueryService _queryService;
-    private readonly IOptions<SecurityOptions> _securityOptions;
-    private readonly IOptions<AiOptions> _aiOptions;
+    private readonly ILogger<SqlGenerationService> _logger = Substitute.For<ILogger<SqlGenerationService>>();
+    private readonly IDatabaseSchemaService _schemaService = Substitute.For<IDatabaseSchemaService>();
+    private readonly IQueryService _queryService = Substitute.For<IQueryService>();
 
-    public SqlGenerationServiceTests()
+    private readonly IOptions<SecurityOptions> _securityOptions = Options.Create(new SecurityOptions
     {
-        _logger = Substitute.For<ILogger<SqlGenerationService>>();
-        _schemaService = Substitute.For<IDatabaseSchemaService>();
-        _queryService = Substitute.For<IQueryService>();
+        AllowDataModification = false,
+        AllowSchemaModification = false
+    });
 
-        _securityOptions = Options.Create(new SecurityOptions
-        {
-            AllowDataModification = false,
-            AllowSchemaModification = false
-        });
-
-        _aiOptions = Options.Create(new AiOptions
-        {
-            Enabled = true,
-            Model = "gpt-4"
-        });
-    }
+    private readonly IOptions<AiOptions> _aiOptions = Options.Create(new AiOptions
+    {
+        Enabled = true,
+        Model = "gpt-4"
+    });
 
     [Fact]
     public void ValidateSqlSafety_SelectQuery_ReturnsTrue()
@@ -44,7 +35,7 @@ public class SqlGenerationServiceTests
             _securityOptions,
             _aiOptions);
 
-        var sql = "SELECT * FROM users WHERE id = 1";
+        const string sql = "SELECT * FROM users WHERE id = 1";
 
         // Act
         var result = service.ValidateSqlSafety(sql);
@@ -129,11 +120,12 @@ public class SqlGenerationServiceTests
             _securityOptions,
             _aiOptions);
 
-        var sql = @"
-            WITH recent_orders AS (
-                SELECT * FROM orders WHERE order_date > NOW() - INTERVAL '30 days'
-            )
-            SELECT * FROM recent_orders";
+        const string sql = """
+                           WITH recent_orders AS (
+                               SELECT * FROM orders WHERE order_date > NOW() - INTERVAL '30 days'
+                           )
+                           SELECT * FROM recent_orders
+                           """;
 
         // Act
         var result = service.ValidateSqlSafety(sql);
@@ -153,20 +145,21 @@ public class SqlGenerationServiceTests
             _securityOptions,
             _aiOptions);
 
-        var sql = @"
-            SELECT
-                c.customer_id,
-                c.first_name,
-                c.last_name,
-                COUNT(o.order_id) as order_count,
-                SUM(o.total_amount) as total_spent
-            FROM customers c
-            LEFT JOIN orders o ON c.customer_id = o.customer_id
-            WHERE c.created_at > '2024-01-01'
-            GROUP BY c.customer_id, c.first_name, c.last_name
-            HAVING COUNT(o.order_id) > 5
-            ORDER BY total_spent DESC
-            LIMIT 10";
+        const string sql = """
+                           SELECT
+                               c.customer_id,
+                               c.first_name,
+                               c.last_name,
+                               COUNT(o.order_id) as order_count,
+                               SUM(o.total_amount) as total_spent
+                           FROM customers c
+                           LEFT JOIN orders o ON c.customer_id = o.customer_id
+                           WHERE c.created_at > '2024-01-01'
+                           GROUP BY c.customer_id, c.first_name, c.last_name
+                           HAVING COUNT(o.order_id) > 5
+                           ORDER BY total_spent DESC
+                           LIMIT 10
+                           """;
 
         // Act
         var result = service.ValidateSqlSafety(sql);

@@ -9,19 +9,15 @@ namespace PostgresMcp.Tests.Controllers;
 
 public class McpControllerTests
 {
-    private readonly ILogger<McpController> _logger;
-    private readonly IDatabaseSchemaService _schemaService;
-    private readonly IQueryService _queryService;
-    private readonly ISqlGenerationService _sqlGenerationService;
+    private readonly ILogger<McpController> _logger = Substitute.For<ILogger<McpController>>();
+    private readonly IDatabaseSchemaService _schemaService = Substitute.For<IDatabaseSchemaService>();
+    private readonly IQueryService _queryService = Substitute.For<IQueryService>();
+    private readonly ISqlGenerationService _sqlGenerationService = Substitute.For<ISqlGenerationService>();
+    
     private readonly McpController _controller;
 
     public McpControllerTests()
     {
-        _logger = Substitute.For<ILogger<McpController>>();
-        _schemaService = Substitute.For<IDatabaseSchemaService>();
-        _queryService = Substitute.For<IQueryService>();
-        _sqlGenerationService = Substitute.For<ISqlGenerationService>();
-
         _controller = new McpController(
             _logger,
             _schemaService,
