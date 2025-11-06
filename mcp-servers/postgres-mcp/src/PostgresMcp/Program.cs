@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
+using Scalar.AspNetCore;
 using Serilog;
 using System.Text.Json.Serialization;
 
@@ -69,7 +70,7 @@ if (aiOptions?.Enabled == true && !string.IsNullOrEmpty(aiOptions.ApiKey))
 else
 {
     Log.Warning("AI features are disabled or not configured");
-    builder.Services.AddSingleton<Kernel?>(provider => null);
+    builder.Services.AddSingleton<Kernel>(provider => null!);
 }
 
 // Register application services

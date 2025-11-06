@@ -59,17 +59,17 @@ public record TableInfo
     /// <summary>
     /// Primary key constraint information.
     /// </summary>
-    public PrimaryKeyInfo? PrimaryKey { get; init; }
+    public PrimaryKeyInfo? PrimaryKey { get; set; }
 
     /// <summary>
     /// Foreign key constraints.
     /// </summary>
-    public List<ForeignKeyInfo>? ForeignKeys { get; init; }
+    public List<ForeignKeyInfo>? ForeignKeys { get; set; }
 
     /// <summary>
     /// Indexes on the table.
     /// </summary>
-    public List<IndexInfo>? Indexes { get; init; }
+    public List<IndexInfo>? Indexes { get; set; }
 
     /// <summary>
     /// Estimated row count.
