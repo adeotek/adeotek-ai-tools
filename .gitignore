@@ -52,3 +52,36 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Logs
+logs/
+*.log
+
+# Docker volumes
+postgres-data/
+pgadmin-data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# User secrets
+**/appsettings.*.local.json
