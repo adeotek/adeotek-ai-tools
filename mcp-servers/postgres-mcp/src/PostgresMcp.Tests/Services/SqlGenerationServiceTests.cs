@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -51,7 +50,7 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Theory]
@@ -73,7 +72,7 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Theory]
@@ -95,7 +94,7 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Theory]
@@ -116,7 +115,7 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -140,7 +139,7 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
@@ -173,6 +172,6 @@ public class SqlGenerationServiceTests
         var result = service.ValidateSqlSafety(sql);
 
         // Assert
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 }

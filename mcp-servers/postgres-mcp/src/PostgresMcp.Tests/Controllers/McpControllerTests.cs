@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -37,15 +36,17 @@ public class McpControllerTests
         var result = _controller.ListTools();
 
         // Assert
-        result.Should().BeOfType<OkObjectResult>();
+        Assert.IsType<OkObjectResult>(result);
         var okResult = result as OkObjectResult;
-        okResult!.Value.Should().BeOfType<McpListToolsResponse>();
+        Assert.NotNull(okResult);
+        Assert.IsType<McpListToolsResponse>(okResult.Value);
 
         var response = okResult.Value as McpListToolsResponse;
-        response!.Tools.Should().HaveCount(3);
-        response.Tools.Should().Contain(t => t.Name == "scan_database_structure");
-        response.Tools.Should().Contain(t => t.Name == "query_database_data");
-        response.Tools.Should().Contain(t => t.Name == "advanced_sql_query");
+        Assert.NotNull(response);
+        Assert.Equal(3, response.Tools.Count);
+        Assert.Contains(response.Tools, t => t.Name == "scan_database_structure");
+        Assert.Contains(response.Tools, t => t.Name == "query_database_data");
+        Assert.Contains(response.Tools, t => t.Name == "advanced_sql_query");
     }
 
     [Fact]
@@ -56,13 +57,15 @@ public class McpControllerTests
 
         // Assert
         var okResult = result as OkObjectResult;
-        var response = okResult!.Value as McpListToolsResponse;
+        Assert.NotNull(okResult);
+        var response = okResult.Value as McpListToolsResponse;
+        Assert.NotNull(response);
 
-        foreach (var tool in response!.Tools)
+        foreach (var tool in response.Tools)
         {
-            tool.Name.Should().NotBeNullOrEmpty();
-            tool.Description.Should().NotBeNullOrEmpty();
-            tool.InputSchema.Should().NotBeNull();
+            Assert.False(string.IsNullOrEmpty(tool.Name));
+            Assert.False(string.IsNullOrEmpty(tool.Description));
+            Assert.NotNull(tool.InputSchema);
         }
     }
 
@@ -74,12 +77,14 @@ public class McpControllerTests
 
         // Assert
         var okResult = result as OkObjectResult;
-        var response = okResult!.Value as McpListToolsResponse;
-        var tool = response!.Tools.First(t => t.Name == "scan_database_structure");
+        Assert.NotNull(okResult);
+        var response = okResult.Value as McpListToolsResponse;
+        Assert.NotNull(response);
+        var tool = response.Tools.First(t => t.Name == "scan_database_structure");
 
-        tool.Name.Should().Be("scan_database_structure");
-        tool.Description.Should().Contain("schema");
-        tool.InputSchema.Should().NotBeNull();
+        Assert.Equal("scan_database_structure", tool.Name);
+        Assert.Contains("schema", tool.Description);
+        Assert.NotNull(tool.InputSchema);
     }
 
     [Fact]
@@ -96,7 +101,7 @@ public class McpControllerTests
         var result = await _controller.CallTool(request, CancellationToken.None);
 
         // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
+        Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
@@ -106,9 +111,10 @@ public class McpControllerTests
         var result = _controller.Health();
 
         // Assert
-        result.Should().BeOfType<OkObjectResult>();
+        Assert.IsType<OkObjectResult>(result);
         var okResult = result as OkObjectResult;
-        okResult!.Value.Should().NotBeNull();
+        Assert.NotNull(okResult);
+        Assert.NotNull(okResult.Value);
     }
 
     [Fact]
@@ -125,6 +131,6 @@ public class McpControllerTests
         var result = await _controller.CallTool(request, CancellationToken.None);
 
         // Assert
-        result.Should().Match<IActionResult>(r => r is StatusCodeResult || r is ObjectResult);
+        Assert.True(result is StatusCodeResult or ObjectResult);
     }
 }

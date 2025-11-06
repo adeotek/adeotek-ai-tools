@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -37,7 +36,7 @@ public class QueryServiceTests
             _securityOptions);
 
         // Assert
-        service.Should().NotBeNull();
+        Assert.NotNull(service);
     }
 
     [Fact]
@@ -47,9 +46,9 @@ public class QueryServiceTests
         var options = _securityOptions.Value;
 
         // Assert
-        options.MaxRowsPerQuery.Should().Be(1000);
-        options.MaxQueryExecutionSeconds.Should().Be(30);
-        options.AllowDataModification.Should().BeFalse();
-        options.AllowSchemaModification.Should().BeFalse();
+        Assert.Equal(1000, options.MaxRowsPerQuery);
+        Assert.Equal(30, options.MaxQueryExecutionSeconds);
+        Assert.False(options.AllowDataModification);
+        Assert.False(options.AllowSchemaModification);
     }
 }
