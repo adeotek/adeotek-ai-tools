@@ -14,7 +14,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
       # PostgreSQL connection (connects to postgres service below)
-      - Postgres__DefaultConnectionString=Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123
+      - Postgres__DefaultConnectionString=Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=password
       # AI Configuration (set your OpenAI API key here or use user secrets)
       - Ai__ApiKey=${OPENAI_API_KEY}
       - Ai__Model=gpt-4
@@ -42,7 +42,7 @@ services:
     environment:
       - POSTGRES_DB=testdb
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_PASSWORD=password
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker-init:/docker-entrypoint-initdb.d
