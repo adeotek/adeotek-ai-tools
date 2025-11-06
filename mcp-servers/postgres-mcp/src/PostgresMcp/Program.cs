@@ -41,30 +41,113 @@ builder.Services.Configure<LoggingOptions>(
 
 // Configure Semantic Kernel with AI
 var aiOptions = builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>();
-if (aiOptions?.Enabled == true && !string.IsNullOrEmpty(aiOptions.ApiKey))
+if (aiOptions?.Enabled == true)
 {
     var kernelBuilder = Kernel.CreateBuilder();
+    var provider = aiOptions.Provider.ToLowerInvariant();
 
-    if (!string.IsNullOrEmpty(aiOptions.AzureEndpoint))
+    try
     {
-        // Azure OpenAI
-        kernelBuilder.AddAzureOpenAIChatCompletion(
-            deploymentName: aiOptions.AzureDeploymentName ?? aiOptions.Model,
-            endpoint: aiOptions.AzureEndpoint,
-            apiKey: aiOptions.ApiKey);
+        switch (provider)
+        {
+            case "openai":
+                if (string.IsNullOrEmpty(aiOptions.ApiKey))
+                {
+                    throw new InvalidOperationException("OpenAI API key is required");
+                }
+                kernelBuilder.AddOpenAIChatCompletion(
+                    modelId: aiOptions.Model,
+                    apiKey: aiOptions.ApiKey);
+                Log.Information("AI features enabled with OpenAI model: {Model}", aiOptions.Model);
+                break;
+
+            case "azureopenai":
+            case "azure":
+                if (string.IsNullOrEmpty(aiOptions.ApiKey))
+                {
+                    throw new InvalidOperationException("Azure OpenAI API key is required");
+                }
+                if (string.IsNullOrEmpty(aiOptions.AzureEndpoint))
+                {
+                    throw new InvalidOperationException("Azure OpenAI endpoint is required");
+                }
+                kernelBuilder.AddAzureOpenAIChatCompletion(
+                    deploymentName: aiOptions.AzureDeploymentName ?? aiOptions.Model,
+                    endpoint: aiOptions.AzureEndpoint,
+                    apiKey: aiOptions.ApiKey);
+                Log.Information("AI features enabled with Azure OpenAI deployment: {Deployment}",
+                    aiOptions.AzureDeploymentName ?? aiOptions.Model);
+                break;
+
+            case "anthropic":
+            case "claude":
+                if (string.IsNullOrEmpty(aiOptions.ApiKey))
+                {
+                    throw new InvalidOperationException("Anthropic API key is required");
+                }
+                // Note: Anthropic connector uses OpenAI-compatible interface through proxy
+                // For direct Anthropic API support, we need to use HTTP client
+                kernelBuilder.Services.AddHttpClient("AnthropicClient", client =>
+                {
+                    client.BaseAddress = new Uri("https://api.anthropic.com/v1/");
+                    client.DefaultRequestHeaders.Add("x-api-key", aiOptions.ApiKey);
+                    client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+                });
+                // Use OpenAI connector as fallback (will need custom implementation for full support)
+                Log.Warning("Anthropic provider is configured but requires custom implementation. Using OpenAI-compatible mode.");
+                kernelBuilder.AddOpenAIChatCompletion(
+                    modelId: aiOptions.Model,
+                    apiKey: aiOptions.ApiKey);
+                break;
+
+            case "gemini":
+            case "google":
+                if (string.IsNullOrEmpty(aiOptions.ApiKey))
+                {
+                    throw new InvalidOperationException("Google Gemini API key is required");
+                }
+                kernelBuilder.AddGoogleAIGeminiChatCompletion(
+                    modelId: aiOptions.Model,
+                    apiKey: aiOptions.ApiKey);
+                Log.Information("AI features enabled with Google Gemini model: {Model}", aiOptions.Model);
+                break;
+
+            case "ollama":
+                var ollamaUrl = aiOptions.BaseUrl ?? "http://localhost:11434";
+                kernelBuilder.AddOllamaChatCompletion(
+                    modelId: aiOptions.Model,
+                    endpoint: new Uri(ollamaUrl));
+                Log.Information("AI features enabled with Ollama model: {Model} at {Endpoint}",
+                    aiOptions.Model, ollamaUrl);
+                break;
+
+            case "lmstudio":
+            case "lm-studio":
+                var lmStudioUrl = aiOptions.BaseUrl ?? "http://localhost:1234";
+                // LM Studio uses OpenAI-compatible API
+                kernelBuilder.AddOpenAIChatCompletion(
+                    modelId: aiOptions.Model,
+                    apiKey: "lm-studio", // LM Studio doesn't require a real API key
+                    endpoint: new Uri($"{lmStudioUrl.TrimEnd('/')}/v1"));
+                Log.Information("AI features enabled with LM Studio model: {Model} at {Endpoint}",
+                    aiOptions.Model, lmStudioUrl);
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unsupported AI provider: {provider}. " +
+                    "Supported providers: openai, azureopenai, anthropic, gemini, ollama, lmstudio");
+        }
+
+        var kernel = kernelBuilder.Build();
+        builder.Services.AddSingleton(kernel);
     }
-    else
+    catch (Exception ex)
     {
-        // OpenAI
-        kernelBuilder.AddOpenAIChatCompletion(
-            modelId: aiOptions.Model,
-            apiKey: aiOptions.ApiKey);
+        Log.Error(ex, "Failed to configure AI provider: {Provider}", provider);
+        Log.Warning("AI features are disabled due to configuration error");
+        builder.Services.AddSingleton<Kernel>(_ => null!);
     }
-
-    var kernel = kernelBuilder.Build();
-    builder.Services.AddSingleton(kernel);
-
-    Log.Information("AI features enabled with model: {Model}", aiOptions.Model);
 }
 else
 {

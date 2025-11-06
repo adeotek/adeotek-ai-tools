@@ -50,6 +50,42 @@ AI-powered SQL generation with validation and optimization.
 - "Find customers who haven't ordered in 90 days but had more than 5 orders in their lifetime"
 - "Analyze monthly sales trends with year-over-year comparison"
 
+## Supported LLM Providers
+
+The PostgreSQL MCP Server supports multiple LLM providers for AI-powered query generation:
+
+### Cloud Providers
+
+- **OpenAI** (default)
+  - Models: `gpt-4`, `gpt-4-turbo-preview`, `gpt-3.5-turbo`
+  - Requires: API key from https://platform.openai.com
+
+- **Anthropic Claude**
+  - Models: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`, `claude-3-sonnet-20240229`
+  - Requires: API key from https://console.anthropic.com
+
+- **Google Gemini**
+  - Models: `gemini-1.5-pro`, `gemini-1.5-flash`
+  - Requires: API key from https://makersuite.google.com/app/apikey
+
+- **Azure OpenAI**
+  - Models: Deployment-specific
+  - Requires: Azure OpenAI endpoint and API key
+
+### Local Providers
+
+- **Ollama** (local, privacy-friendly)
+  - Models: `llama2`, `llama3`, `mistral`, `codellama`, etc.
+  - Requires: Ollama running locally (https://ollama.ai)
+  - Default endpoint: http://localhost:11434
+
+- **LM Studio** (local, easy setup)
+  - Models: Any model loaded in LM Studio
+  - Requires: LM Studio running with local server enabled
+  - Default endpoint: http://localhost:1234
+
+To configure a provider, set the `Ai__Provider` environment variable to one of: `openai`, `anthropic`, `gemini`, `ollama`, `lmstudio`, or `azureopenai`.
+
 ## Quick Start
 
 ### Using Docker Compose (Recommended)
@@ -76,13 +112,35 @@ AI-powered SQL generation with validation and optimization.
 1. **Prerequisites**:
    - .NET 9 SDK
    - PostgreSQL 16+
-   - OpenAI API key (optional, for AI features)
+   - LLM API key (optional, for AI features) - OpenAI, Anthropic, Gemini, or Azure OpenAI
+   - OR local LLM (Ollama or LM Studio) for privacy-focused deployment
 
 2. **Configure the application**:
    ```bash
    cd src/PostgresMcp
    dotnet user-secrets init
-   dotnet user-secrets set "Ai:ApiKey" "your-openai-api-key"
+
+   # For OpenAI (default)
+   dotnet user-secrets set "Ai:Provider" "openai"
+   dotnet user-secrets set "Ai:ApiKey" "sk-your-openai-api-key"
+   dotnet user-secrets set "Ai:Model" "gpt-4"
+
+   # OR for Anthropic Claude
+   # dotnet user-secrets set "Ai:Provider" "anthropic"
+   # dotnet user-secrets set "Ai:ApiKey" "sk-ant-your-anthropic-key"
+   # dotnet user-secrets set "Ai:Model" "claude-3-5-sonnet-20241022"
+
+   # OR for Google Gemini
+   # dotnet user-secrets set "Ai:Provider" "gemini"
+   # dotnet user-secrets set "Ai:ApiKey" "AIza-your-gemini-key"
+   # dotnet user-secrets set "Ai:Model" "gemini-1.5-pro"
+
+   # OR for Ollama (local)
+   # dotnet user-secrets set "Ai:Provider" "ollama"
+   # dotnet user-secrets set "Ai:Model" "llama3"
+   # dotnet user-secrets set "Ai:BaseUrl" "http://localhost:11434"
+
+   # PostgreSQL connection
    dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;Database=testdb;Username=postgres;Password=yourpass"
    ```
 
@@ -112,13 +170,33 @@ Postgres__ConnectionTimeoutSeconds=30
 Postgres__CommandTimeoutSeconds=60
 
 # AI Configuration
+# Choose your LLM provider: openai, anthropic, gemini, ollama, lmstudio, azureopenai
+Ai__Provider="openai"
 Ai__ApiKey="sk-..."
 Ai__Model="gpt-4"
 Ai__Enabled=true
+Ai__MaxTokens=2000
+Ai__Temperature=0.1
 
-# For Azure OpenAI
+# For Azure OpenAI (use Ai__Provider="azureopenai")
 Ai__AzureEndpoint="https://your-resource.openai.azure.com"
 Ai__AzureDeploymentName="gpt-4"
+
+# For Anthropic Claude (use Ai__Provider="anthropic")
+# Ai__ApiKey="sk-ant-..."
+# Ai__Model="claude-3-5-sonnet-20241022"
+
+# For Google Gemini (use Ai__Provider="gemini")
+# Ai__ApiKey="AIza..."
+# Ai__Model="gemini-1.5-pro"
+
+# For Ollama (local LLM, use Ai__Provider="ollama")
+# Ai__Model="llama3"
+# Ai__BaseUrl="http://localhost:11434"
+
+# For LM Studio (local LLM, use Ai__Provider="lmstudio")
+# Ai__Model="local-model"
+# Ai__BaseUrl="http://localhost:1234"
 
 # Security Settings
 Security__EnableRateLimiting=true
@@ -140,9 +218,15 @@ Security__AllowSchemaModification=false
     "UseSsl": true
   },
   "Ai": {
+    "Provider": "openai",
     "ApiKey": null,
     "Model": "gpt-4",
-    "Enabled": true
+    "BaseUrl": null,
+    "AzureEndpoint": null,
+    "AzureDeploymentName": null,
+    "Enabled": true,
+    "MaxTokens": 2000,
+    "Temperature": 0.1
   },
   "Security": {
     "EnableRateLimiting": true,

@@ -57,22 +57,40 @@ public class AiOptions
     public const string SectionName = "Ai";
 
     /// <summary>
-    /// OpenAI API key or Azure OpenAI key.
+    /// LLM provider to use (openai, anthropic, gemini, ollama, lmstudio, azureopenai).
+    /// </summary>
+    public string Provider { get; set; } = "openai";
+
+    /// <summary>
+    /// API key for the LLM provider (OpenAI, Anthropic, Gemini, or Azure OpenAI).
     /// </summary>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Model to use for query generation (e.g., "gpt-4", "gpt-3.5-turbo").
+    /// Model to use for query generation.
+    /// - OpenAI: "gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo"
+    /// - Anthropic: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229"
+    /// - Gemini: "gemini-1.5-pro", "gemini-1.5-flash"
+    /// - Ollama: "llama2", "llama3", "mistral", "codellama"
+    /// - LM Studio: any locally loaded model name
     /// </summary>
     public string Model { get; set; } = "gpt-4";
 
     /// <summary>
-    /// Azure OpenAI endpoint (if using Azure).
+    /// Base URL for local or custom LLM providers (Ollama, LM Studio).
+    /// - Ollama default: http://localhost:11434
+    /// - LM Studio default: http://localhost:1234
+    /// </summary>
+    public string? BaseUrl { get; set; }
+
+    /// <summary>
+    /// Azure OpenAI endpoint (if using Azure OpenAI provider).
+    /// Example: https://your-resource.openai.azure.com
     /// </summary>
     public string? AzureEndpoint { get; set; }
 
     /// <summary>
-    /// Azure OpenAI deployment name (if using Azure).
+    /// Azure OpenAI deployment name (if using Azure OpenAI provider).
     /// </summary>
     public string? AzureDeploymentName { get; set; }
 
@@ -83,6 +101,7 @@ public class AiOptions
 
     /// <summary>
     /// Temperature for AI responses (0.0 - 1.0).
+    /// Lower values = more focused, higher values = more creative.
     /// </summary>
     public double Temperature { get; set; } = 0.1;
 
