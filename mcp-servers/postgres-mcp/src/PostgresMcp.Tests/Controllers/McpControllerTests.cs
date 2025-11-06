@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using PostgresMcp.Controllers;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
@@ -9,24 +9,24 @@ namespace PostgresMcp.Tests.Controllers;
 
 public class McpControllerTests
 {
-    private readonly Mock<ILogger<McpController>> _loggerMock;
-    private readonly Mock<IDatabaseSchemaService> _schemaServiceMock;
-    private readonly Mock<IQueryService> _queryServiceMock;
-    private readonly Mock<ISqlGenerationService> _sqlGenerationServiceMock;
+    private readonly ILogger<McpController> _logger;
+    private readonly IDatabaseSchemaService _schemaService;
+    private readonly IQueryService _queryService;
+    private readonly ISqlGenerationService _sqlGenerationService;
     private readonly McpController _controller;
 
     public McpControllerTests()
     {
-        _loggerMock = new Mock<ILogger<McpController>>();
-        _schemaServiceMock = new Mock<IDatabaseSchemaService>();
-        _queryServiceMock = new Mock<IQueryService>();
-        _sqlGenerationServiceMock = new Mock<ISqlGenerationService>();
+        _logger = Substitute.For<ILogger<McpController>>();
+        _schemaService = Substitute.For<IDatabaseSchemaService>();
+        _queryService = Substitute.For<IQueryService>();
+        _sqlGenerationService = Substitute.For<ISqlGenerationService>();
 
         _controller = new McpController(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
-            _sqlGenerationServiceMock.Object);
+            _logger,
+            _schemaService,
+            _queryService,
+            _sqlGenerationService);
     }
 
     [Fact]

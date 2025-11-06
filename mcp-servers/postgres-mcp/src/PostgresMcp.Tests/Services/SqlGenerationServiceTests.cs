@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 
@@ -8,17 +8,17 @@ namespace PostgresMcp.Tests.Services;
 
 public class SqlGenerationServiceTests
 {
-    private readonly Mock<ILogger<SqlGenerationService>> _loggerMock;
-    private readonly Mock<IDatabaseSchemaService> _schemaServiceMock;
-    private readonly Mock<IQueryService> _queryServiceMock;
+    private readonly ILogger<SqlGenerationService> _logger;
+    private readonly IDatabaseSchemaService _schemaService;
+    private readonly IQueryService _queryService;
     private readonly IOptions<SecurityOptions> _securityOptions;
     private readonly IOptions<AiOptions> _aiOptions;
 
     public SqlGenerationServiceTests()
     {
-        _loggerMock = new Mock<ILogger<SqlGenerationService>>();
-        _schemaServiceMock = new Mock<IDatabaseSchemaService>();
-        _queryServiceMock = new Mock<IQueryService>();
+        _logger = Substitute.For<ILogger<SqlGenerationService>>();
+        _schemaService = Substitute.For<IDatabaseSchemaService>();
+        _queryService = Substitute.For<IQueryService>();
 
         _securityOptions = Options.Create(new SecurityOptions
         {
@@ -38,9 +38,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 
@@ -62,9 +62,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 
@@ -84,9 +84,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 
@@ -105,9 +105,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 
@@ -123,9 +123,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 
@@ -147,9 +147,9 @@ public class SqlGenerationServiceTests
     {
         // Arrange
         var service = new SqlGenerationService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
-            _queryServiceMock.Object,
+            _logger,
+            _schemaService,
+            _queryService,
             _securityOptions,
             _aiOptions);
 

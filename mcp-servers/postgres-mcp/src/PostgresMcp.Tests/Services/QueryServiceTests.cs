@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 
@@ -8,14 +8,14 @@ namespace PostgresMcp.Tests.Services;
 
 public class QueryServiceTests
 {
-    private readonly Mock<ILogger<QueryService>> _loggerMock;
-    private readonly Mock<IDatabaseSchemaService> _schemaServiceMock;
+    private readonly ILogger<QueryService> _logger;
+    private readonly IDatabaseSchemaService _schemaService;
     private readonly IOptions<SecurityOptions> _securityOptions;
 
     public QueryServiceTests()
     {
-        _loggerMock = new Mock<ILogger<QueryService>>();
-        _schemaServiceMock = new Mock<IDatabaseSchemaService>();
+        _logger = Substitute.For<ILogger<QueryService>>();
+        _schemaService = Substitute.For<IDatabaseSchemaService>();
 
         _securityOptions = Options.Create(new SecurityOptions
         {
@@ -31,8 +31,8 @@ public class QueryServiceTests
     {
         // Act
         var service = new QueryService(
-            _loggerMock.Object,
-            _schemaServiceMock.Object,
+            _logger,
+            _schemaService,
             _securityOptions);
 
         // Assert
