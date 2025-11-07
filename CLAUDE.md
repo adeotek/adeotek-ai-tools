@@ -19,7 +19,7 @@ adeotek-ai-tools/
 ├── CLAUDE.md                # This file - detailed context for Claude
 ├── LICENSE                  # MIT License
 ├── mcp-servers/             # Model Context Protocol servers
-│   └── postgres-mcp/        # PostgreSQL MCP server (planned)
+│   └── postgres-nl-mcp/        # PostgreSQL MCP server (planned)
 ├── agents/                  # Intelligent AI agents
 │   └── http-agent/          # Intelligent HTTP request agent
 │       ├── cmd/
@@ -95,7 +95,7 @@ docker-compose up -d
 - "Is this API response time acceptable?"
 - "What are the security headers in this response?"
 
-### 2. PostgreSQL MCP Server (`/mcp-servers/postgres-mcp`)
+### 2. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
 
 **Status**: ✅ Production Ready
 
@@ -123,7 +123,7 @@ docker-compose up -d
 
 **Running Locally**:
 ```bash
-cd mcp-servers/postgres-mcp
+cd mcp-servers/postgres-nl-mcp
 # Set OpenAI API key
 export Ai__ApiKey=your-openai-key
 # Start with Docker Compose (includes PostgreSQL + pgAdmin)
@@ -133,7 +133,7 @@ docker-compose up -d
 
 **Running for Development**:
 ```bash
-cd mcp-servers/postgres-mcp/src/PostgresMcp
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
 dotnet user-secrets set "Ai:ApiKey" "your-openai-key"
 dotnet restore
 dotnet run
@@ -297,26 +297,26 @@ export LLM_MODEL=local-model
 export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
 ```
 
-### PostgreSQL MCP Server
+### PostgreSQL Natural Language MCP Server
 
 ```bash
 # Local development
-cd mcp-servers/postgres-mcp/src/PostgresMcp
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
 dotnet restore
 dotnet build
 dotnet run
 
 # Run tests
-cd mcp-servers/postgres-mcp
+cd mcp-servers/postgres-nl-mcp
 dotnet test
 
 # Format code
 dotnet format
 
 # Docker deployment
-cd mcp-servers/postgres-mcp
+cd mcp-servers/postgres-nl-mcp
 docker-compose up -d
-docker-compose logs -f postgres-mcp
+docker-compose logs -f postgres-nl-mcp
 docker-compose down
 
 # Environment variables - OpenAI
@@ -340,7 +340,7 @@ export Security__MaxRowsPerQuery=1000
 export Security__AllowDataModification=false
 
 # User secrets (recommended for development)
-cd mcp-servers/postgres-mcp/src/PostgresMcp
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
 dotnet user-secrets init
 dotnet user-secrets set "Ai:ApiKey" "sk-..."
 dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;..."
@@ -449,7 +449,7 @@ curl -X POST http://localhost:8080/api/request \
 curl http://localhost:8080/health
 ```
 
-### PostgreSQL MCP Server
+### PostgreSQL Natural Language MCP Server
 
 ```bash
 # Test health endpoint
@@ -492,7 +492,7 @@ curl -X POST http://localhost:5000/mcp/tools/call \
   }'
 
 # Run unit tests
-cd mcp-servers/postgres-mcp
+cd mcp-servers/postgres-nl-mcp
 dotnet test --verbosity normal
 
 # Run tests with coverage
@@ -551,7 +551,7 @@ spec:
 4. **Private IP blocked**: Set `BLOCK_PRIVATE_IPS=false` for local testing
 5. **Request timeout**: Increase `HTTP_TIMEOUT` value
 
-**PostgreSQL MCP Server**:
+**PostgreSQL Natural Language MCP Server**:
 1. **AI features not working**:
    - Check if `Ai__ApiKey` is set
    - Verify `Ai__Enabled=true` in configuration
@@ -606,7 +606,7 @@ When contributing to this repository:
 
 ### Completed Projects
 - [x] **HTTP Agent** (Go) - Intelligent HTTP request tool with AI analysis
-- [x] **PostgreSQL MCP Server** (.NET 9) - AI-powered database operations
+- [x] **PostgreSQL Natural Language MCP Server** (.NET 9) - AI-powered database operations
 
 ### Planned MCP Servers
 - [ ] MySQL MCP Server (.NET 9)
