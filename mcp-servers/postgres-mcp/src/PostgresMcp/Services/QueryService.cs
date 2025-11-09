@@ -1,297 +1,219 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel;
 using Npgsql;
 using PostgresMcp.Models;
-using System.Diagnostics;
-using System.Security;
-using System.Text.RegularExpressions;
 
 namespace PostgresMcp.Services;
 
 /// <summary>
-/// Service for executing database queries with relationship awareness.
+/// Service for executing read-only database queries with comprehensive safety validation.
 /// </summary>
 public class QueryService(
     ILogger<QueryService> logger,
-    IDatabaseSchemaService schemaService,
+    IOptions<PostgresOptions> postgresOptions,
     IOptions<SecurityOptions> securityOptions,
-    Kernel? kernel = null) : IQueryService
+    IOptions<LoggingOptions> loggingOptions)
+    : IQueryService
 {
+    private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
-
-    /// <inheritdoc/>
-    public async Task<QueryResult> QueryDataAsync(
-        string connectionString,
-        string naturalLanguageQuery,
-        CancellationToken cancellationToken = default)
-    {
-        logger.LogInformation("Processing natural language query: {Query}", naturalLanguageQuery);
-
-        // Get schema context
-        var schema = await schemaService.ScanDatabaseSchemaAsync(
-            connectionString,
-            null,
-            cancellationToken);
-
-        // Generate SQL from natural language
-        var sqlQuery = await GenerateSqlFromNaturalLanguageAsync(
-            schema,
-            naturalLanguageQuery,
-            cancellationToken);
-
-        logger.LogInformation("Generated SQL: {Sql}", sqlQuery);
-
-        // Execute the query
-        return await ExecuteQueryAsync(connectionString, sqlQuery, cancellationToken);
-    }
+    private readonly LoggingOptions _loggingOptions = loggingOptions.Value;
 
     /// <inheritdoc/>
     public async Task<QueryResult> ExecuteQueryAsync(
         string connectionString,
-        string sqlQuery,
+        string sql,
         CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Executing SQL query");
+        // Validate query safety first
+        if (!ValidateQuerySafety(sql))
+        {
+            throw new InvalidOperationException("Query failed safety validation. Only SELECT queries are allowed.");
+        }
 
-        // Validate query safety
-        ValidateQuerySafety(sqlQuery);
+        if (_loggingOptions.LogQueries)
+        {
+            logger.LogInformation("Executing query: {Sql}", sql);
+        }
 
         var stopwatch = Stopwatch.StartNew();
+        var result = new QueryResult();
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        // Apply query timeout
-        await using var cmd = new NpgsqlCommand(sqlQuery, connection);
-        cmd.CommandTimeout = _securityOptions.MaxQueryExecutionSeconds;
-
-        // Add row limit if not present
-        var limitedQuery = EnsureRowLimit(sqlQuery, _securityOptions.MaxRowsPerQuery);
-        cmd.CommandText = limitedQuery;
+        await using var cmd = new NpgsqlCommand(sql, connection)
+        {
+            CommandTimeout = _securityOptions.MaxQueryExecutionSeconds
+        };
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
-        List<string> columns = [];
+        // Get column names
         for (int i = 0; i < reader.FieldCount; i++)
         {
-            columns.Add(reader.GetName(i));
+            result.Columns.Add(reader.GetName(i));
         }
 
-        List<Dictionary<string, object?>> rows = [];
+        // Read rows
+        int rowCount = 0;
         while (await reader.ReadAsync(cancellationToken))
         {
+            if (rowCount >= _securityOptions.MaxRowsPerQuery)
+            {
+                result.IsTruncated = true;
+                break;
+            }
+
             var row = new Dictionary<string, object?>();
             for (int i = 0; i < reader.FieldCount; i++)
             {
                 var value = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                row[columns[i]] = value;
+                row[result.Columns[i]] = value;
             }
-            rows.Add(row);
 
-            // Safety check: don't exceed max rows
-            if (rows.Count >= _securityOptions.MaxRowsPerQuery)
-                break;
+            result.Rows.Add(row);
+            rowCount++;
         }
 
         stopwatch.Stop();
+        result.ExecutionTimeMs = stopwatch.ElapsedMilliseconds;
 
-        var relatedTables = ExtractTableNames(sqlQuery);
-
-        return new QueryResult
+        if (_loggingOptions.LogResults)
         {
-            Columns = columns,
-            Rows = rows,
-            ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
-            RelatedTables = relatedTables
-        };
-    }
-
-    private async Task<string> GenerateSqlFromNaturalLanguageAsync(
-        DatabaseSchema schema,
-        string naturalLanguageQuery,
-        CancellationToken cancellationToken)
-    {
-        if (kernel == null)
-        {
-            throw new InvalidOperationException(
-                "AI features are not configured. Cannot generate SQL from natural language.");
+            logger.LogInformation("Query returned {RowCount} rows in {Ms}ms",
+                result.RowCount, result.ExecutionTimeMs);
         }
 
-        var schemaContext = FormatSchemaForSqlGeneration(schema);
+        return result;
+    }
 
-        var prompt = $"""
-            You are a PostgreSQL expert. Generate a SQL query based on the natural language request.
+    /// <inheritdoc/>
+    public bool ValidateQuerySafety(string sql)
+    {
+        try
+        {
+            var normalizedQuery = sql.ToUpperInvariant().Trim();
 
-            Database Schema:
-            {schemaContext}
+            // Remove comments and extra whitespace
+            normalizedQuery = RemoveComments(normalizedQuery);
+            normalizedQuery = Regex.Replace(normalizedQuery, @"\s+", " ");
 
-            Rules:
-            1. Generate only SELECT queries (no INSERT, UPDATE, DELETE, DROP, CREATE, ALTER)
-            2. Use proper JOINs when querying related tables
-            3. Include appropriate WHERE clauses for filtering
-            4. Use column aliases for clarity
-            5. Return ONLY the SQL query, no explanations or markdown
-            6. Use proper PostgreSQL syntax
-            7. Consider foreign key relationships when joining tables
+            // Must be a SELECT or WITH query
+            if (!normalizedQuery.StartsWith("SELECT") && !normalizedQuery.StartsWith("WITH"))
+            {
+                logger.LogWarning("Query rejected: Must start with SELECT or WITH");
+                return false;
+            }
 
-            Natural Language Request: {naturalLanguageQuery}
+            // CRITICAL: Block all data modification keywords
+            string[] dataModificationKeywords = [
+                "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE", "UPSERT"
+            ];
 
-            SQL Query:
-            """;
+            if (dataModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            {
+                logger.LogWarning("Query rejected: Contains data modification keyword");
+                return false;
+            }
 
-        var response = await kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
-        var sql = response.ToString().Trim();
+            // CRITICAL: Block all schema modification keywords
+            string[] schemaModificationKeywords = [
+                "CREATE", "ALTER", "DROP", "RENAME", "GRANT", "REVOKE",
+                "TRUNCATE", "COMMENT ON"
+            ];
 
-        // Clean up the response (remove markdown code blocks if present)
-        sql = Regex.Replace(sql, @"```sql\s*|\s*```", "", RegexOptions.IgnoreCase);
-        sql = sql.Trim();
+            if (schemaModificationKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            {
+                logger.LogWarning("Query rejected: Contains schema modification keyword");
+                return false;
+            }
+
+            // Block dangerous functions that can modify data or schema
+            string[] dangerousFunctions = [
+                "pg_read_file", "pg_write_file", "pg_ls_dir", "COPY",
+                "pg_execute", "pg_read_binary_file", "pg_stat_file",
+                "pg_terminate_backend", "pg_cancel_backend",
+                "pg_reload_conf", "pg_rotate_logfile",
+                "pg_create_restore_point", "pg_start_backup", "pg_stop_backup",
+                "pg_switch_wal", "pg_create_physical_replication_slot",
+                "pg_drop_replication_slot", "pg_replication_origin_create",
+                "pg_replication_origin_drop"
+            ];
+
+            if (dangerousFunctions.Any(func => normalizedQuery.Contains(func.ToUpperInvariant())))
+            {
+                logger.LogWarning("Query rejected: Contains dangerous function");
+                return false;
+            }
+
+            // Block procedural code execution
+            if (normalizedQuery.Contains("$$") ||
+                Regex.IsMatch(normalizedQuery, @"\bDO\s+\$"))
+            {
+                logger.LogWarning("Query rejected: Contains procedural code");
+                return false;
+            }
+
+            // Block transaction control (not needed for read-only)
+            string[] transactionKeywords = [
+                "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "START TRANSACTION"
+            ];
+
+            if (transactionKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            {
+                logger.LogWarning("Query rejected: Contains transaction control");
+                return false;
+            }
+
+            // Block LOCK statements
+            if (Regex.IsMatch(normalizedQuery, @"\bLOCK\s+TABLE"))
+            {
+                logger.LogWarning("Query rejected: Contains LOCK statement");
+                return false;
+            }
+
+            // Block VACUUM, ANALYZE, REINDEX
+            string[] maintenanceKeywords = ["VACUUM", "ANALYZE", "REINDEX", "CLUSTER"];
+            if (maintenanceKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            {
+                logger.LogWarning("Query rejected: Contains maintenance command");
+                return false;
+            }
+
+            // Block LISTEN/NOTIFY/UNLISTEN
+            string[] messagingKeywords = ["LISTEN", "NOTIFY", "UNLISTEN"];
+            if (messagingKeywords.Any(kw => Regex.IsMatch(normalizedQuery, $@"\b{kw}\b")))
+            {
+                logger.LogWarning("Query rejected: Contains messaging command");
+                return false;
+            }
+
+            // Block SET commands (configuration changes)
+            if (Regex.IsMatch(normalizedQuery, @"\bSET\s+"))
+            {
+                logger.LogWarning("Query rejected: Contains SET command");
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error validating query safety");
+            return false;
+        }
+    }
+
+    private string RemoveComments(string sql)
+    {
+        // Remove single-line comments (-- comment)
+        sql = Regex.Replace(sql, @"--[^\r\n]*", "");
+
+        // Remove multi-line comments (/* comment */)
+        sql = Regex.Replace(sql, @"/\*.*?\*/", "", RegexOptions.Singleline);
 
         return sql;
-    }
-
-    private void ValidateQuerySafety(string sqlQuery)
-    {
-        var normalizedQuery = sqlQuery.ToUpperInvariant().Trim();
-
-        // Check for data modification
-        if (!_securityOptions.AllowDataModification)
-        {
-            string[] dataModificationKeywords = ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE"];
-            foreach (var keyword in dataModificationKeywords)
-            {
-                if (Regex.IsMatch(normalizedQuery, $@"\b{keyword}\b"))
-                {
-                    throw new SecurityException(
-                        $"Data modification queries are not allowed. Found: {keyword}");
-                }
-            }
-        }
-
-        // Check for schema modification
-        if (!_securityOptions.AllowSchemaModification)
-        {
-            string[] schemaModificationKeywords = ["CREATE", "ALTER", "DROP", "RENAME"];
-            foreach (var keyword in schemaModificationKeywords)
-            {
-                if (Regex.IsMatch(normalizedQuery, $@"\b{keyword}\b"))
-                {
-                    throw new SecurityException(
-                        $"Schema modification queries are not allowed. Found: {keyword}");
-                }
-            }
-        }
-
-        // Check for dangerous functions
-        string[] dangerousFunctions = ["pg_read_file", "pg_write_file", "pg_ls_dir", "COPY"];
-        foreach (var func in dangerousFunctions)
-        {
-            if (normalizedQuery.Contains(func.ToUpperInvariant()))
-            {
-                throw new SecurityException(
-                    $"Dangerous function or command not allowed: {func}");
-            }
-        }
-
-        // Ensure it's a SELECT query
-        if (!normalizedQuery.TrimStart().StartsWith("SELECT") &&
-            !normalizedQuery.TrimStart().StartsWith("WITH"))
-        {
-            throw new SecurityException(
-                "Only SELECT queries (and WITH clauses) are allowed.");
-        }
-    }
-
-    private string EnsureRowLimit(string sqlQuery, int maxRows)
-    {
-        // Check if query already has a LIMIT clause
-        if (Regex.IsMatch(sqlQuery, @"\bLIMIT\s+\d+", RegexOptions.IgnoreCase))
-        {
-            // Validate the existing limit doesn't exceed max
-            var match = Regex.Match(sqlQuery, @"\bLIMIT\s+(\d+)", RegexOptions.IgnoreCase);
-            if (match.Success && int.TryParse(match.Groups[1].Value, out int existingLimit))
-            {
-                if (existingLimit <= maxRows)
-                    return sqlQuery;
-
-                // Replace with max limit
-                return Regex.Replace(
-                    sqlQuery,
-                    @"\bLIMIT\s+\d+",
-                    $"LIMIT {maxRows}",
-                    RegexOptions.IgnoreCase);
-            }
-        }
-
-        // Add LIMIT clause
-        return $"{sqlQuery.TrimEnd(';')} LIMIT {maxRows}";
-    }
-
-    private List<string> ExtractTableNames(string sqlQuery)
-    {
-        List<string> tables = [];
-
-        // Match table names in FROM and JOIN clauses
-        string[] patterns =
-        [
-            @"\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)",
-            @"\bJOIN\s+([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)"
-        ];
-
-        foreach (var pattern in patterns)
-        {
-            var matches = Regex.Matches(sqlQuery, pattern, RegexOptions.IgnoreCase);
-            foreach (Match match in matches)
-            {
-                var schema = match.Groups[1].Success
-                    ? match.Groups[1].Value.TrimEnd('.')
-                    : "public";
-                var table = match.Groups[2].Value;
-                var fullName = $"{schema}.{table}";
-
-                if (!tables.Contains(fullName))
-                    tables.Add(fullName);
-            }
-        }
-
-        return tables;
-    }
-
-    private string FormatSchemaForSqlGeneration(DatabaseSchema schema)
-    {
-        var schemaText = new System.Text.StringBuilder();
-
-        foreach (var table in schema.Tables)
-        {
-            schemaText.AppendLine($"Table: {table.FullName}");
-
-            // Columns
-            schemaText.AppendLine("Columns:");
-            foreach (var col in table.Columns)
-            {
-                var nullable = col.IsNullable ? "NULL" : "NOT NULL";
-                schemaText.AppendLine($"  {col.ColumnName} {col.DataType} {nullable}");
-            }
-
-            // Primary key
-            if (table.PrimaryKey != null)
-            {
-                schemaText.AppendLine($"Primary Key: {string.Join(", ", table.PrimaryKey.Columns)}");
-            }
-
-            // Foreign keys (relationships)
-            if (table.ForeignKeys?.Any() == true)
-            {
-                schemaText.AppendLine("Foreign Keys:");
-                foreach (var fk in table.ForeignKeys)
-                {
-                    schemaText.AppendLine(
-                        $"  {fk.ColumnName} -> {fk.ReferencedSchema}.{fk.ReferencedTable}({fk.ReferencedColumn})");
-                }
-            }
-
-            schemaText.AppendLine();
-        }
-
-        return schemaText.ToString();
     }
 }

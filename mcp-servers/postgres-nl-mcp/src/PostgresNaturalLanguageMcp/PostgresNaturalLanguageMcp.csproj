@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>PostgresMcp</RootNamespace>
+    <RootNamespace>PostgresNaturalLanguageMcp</RootNamespace>
     <LangVersion>13.0</LangVersion>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
@@ -12,10 +12,17 @@
   <ItemGroup>
     <!-- PostgreSQL Database -->
     <PackageReference Include="Npgsql" Version="9.0.0" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
 
     <!-- ASP.NET Core -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="1.2.42" />
+
+    <!-- AI/LLM Integration -->
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.26.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.26.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.26.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.26.0-alpha" />
 
     <!-- Logging -->
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />

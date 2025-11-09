@@ -1,148 +1,177 @@
+using System.Text.Json.Serialization;
+
 namespace PostgresMcp.Models;
 
 /// <summary>
-/// Represents an MCP tool definition following the Model Context Protocol specification.
+/// MCP Tool definition.
 /// </summary>
-public record McpTool
+public class McpTool
 {
     /// <summary>
-    /// Unique identifier for the tool.
+    /// Tool name (e.g., "scan_database_structure").
     /// </summary>
-    public required string Name { get; init; }
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Human-readable description of what the tool does.
+    /// Tool description.
     /// </summary>
-    public required string Description { get; init; }
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// JSON Schema defining the input parameters for the tool.
+    /// Input schema (JSON Schema format).
     /// </summary>
-    public required object InputSchema { get; init; }
+    [JsonPropertyName("inputSchema")]
+    public object InputSchema { get; set; } = new { };
 }
 
 /// <summary>
-/// Request to invoke an MCP tool.
+/// MCP Tool list response.
 /// </summary>
-public record McpToolCallRequest
+public class McpToolsResponse
 {
     /// <summary>
-    /// The name of the tool to invoke.
+    /// List of available tools.
     /// </summary>
-    public required string Name { get; init; }
-
-    /// <summary>
-    /// Arguments to pass to the tool as a JSON object.
-    /// </summary>
-    public required Dictionary<string, object?> Arguments { get; init; }
+    [JsonPropertyName("tools")]
+    public List<McpTool> Tools { get; set; } = [];
 }
 
 /// <summary>
-/// Response from an MCP tool invocation.
+/// MCP Tool call request.
 /// </summary>
-public record McpToolCallResponse
+public class McpToolCallRequest
 {
     /// <summary>
-    /// Whether the tool execution was successful.
+    /// Name of the tool to call.
     /// </summary>
-    public required bool Success { get; init; }
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// The result data from the tool execution.
+    /// Tool arguments (varies by tool).
     /// </summary>
-    public object? Data { get; init; }
-
-    /// <summary>
-    /// Error message if the execution failed.
-    /// </summary>
-    public string? Error { get; init; }
-
-    /// <summary>
-    /// Additional metadata about the execution.
-    /// </summary>
-    public Dictionary<string, object>? Metadata { get; init; }
+    [JsonPropertyName("arguments")]
+    public Dictionary<string, object?> Arguments { get; set; } = [];
 }
 
 /// <summary>
-/// List tools response following MCP specification.
+/// MCP Tool call response.
 /// </summary>
-public record McpListToolsResponse
+public class McpToolCallResponse
 {
     /// <summary>
-    /// Available tools.
+    /// Whether the tool call was successful.
     /// </summary>
-    public required List<McpTool> Tools { get; init; }
+    [JsonPropertyName("isError")]
+    public bool IsError { get; set; }
+
+    /// <summary>
+    /// Content of the response.
+    /// </summary>
+    [JsonPropertyName("content")]
+    public List<McpContent> Content { get; set; } = [];
 }
 
 /// <summary>
-/// JSON-RPC 2.0 request wrapper.
+/// MCP Content item.
 /// </summary>
-public record JsonRpcRequest
+public class McpContent
 {
     /// <summary>
-    /// JSON-RPC version (must be "2.0").
+    /// Content type (usually "text").
     /// </summary>
-    public string Jsonrpc { get; init; } = "2.0";
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "text";
 
     /// <summary>
-    /// Request identifier.
+    /// Text content.
     /// </summary>
-    public required string Id { get; init; }
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// JSON-RPC 2.0 request.
+/// </summary>
+public class JsonRpcRequest
+{
+    /// <summary>
+    /// JSON-RPC version (always "2.0").
+    /// </summary>
+    [JsonPropertyName("jsonrpc")]
+    public string JsonRpc { get; set; } = "2.0";
 
     /// <summary>
-    /// Method name to invoke.
+    /// Request ID.
     /// </summary>
-    public required string Method { get; init; }
+    [JsonPropertyName("id")]
+    public object? Id { get; set; }
+
+    /// <summary>
+    /// Method name.
+    /// </summary>
+    [JsonPropertyName("method")]
+    public string Method { get; set; } = string.Empty;
 
     /// <summary>
     /// Method parameters.
     /// </summary>
-    public object? Params { get; init; }
+    [JsonPropertyName("params")]
+    public Dictionary<string, object?>? Params { get; set; }
 }
 
 /// <summary>
-/// JSON-RPC 2.0 response wrapper.
+/// JSON-RPC 2.0 response.
 /// </summary>
-public record JsonRpcResponse
+public class JsonRpcResponse
 {
     /// <summary>
-    /// JSON-RPC version (must be "2.0").
+    /// JSON-RPC version (always "2.0").
     /// </summary>
-    public string Jsonrpc { get; init; } = "2.0";
+    [JsonPropertyName("jsonrpc")]
+    public string JsonRpc { get; set; } = "2.0";
 
     /// <summary>
-    /// Request identifier.
+    /// Request ID (same as request).
     /// </summary>
-    public required string Id { get; init; }
+    [JsonPropertyName("id")]
+    public object? Id { get; set; }
 
     /// <summary>
-    /// Result object (present if successful).
+    /// Result (if successful).
     /// </summary>
-    public object? Result { get; init; }
+    [JsonPropertyName("result")]
+    public object? Result { get; set; }
 
     /// <summary>
-    /// Error object (present if failed).
+    /// Error (if failed).
     /// </summary>
-    public JsonRpcError? Error { get; init; }
+    [JsonPropertyName("error")]
+    public JsonRpcError? Error { get; set; }
 }
 
 /// <summary>
-/// JSON-RPC 2.0 error object.
+/// JSON-RPC 2.0 error.
 /// </summary>
-public record JsonRpcError
+public class JsonRpcError
 {
     /// <summary>
     /// Error code.
     /// </summary>
-    public required int Code { get; init; }
+    [JsonPropertyName("code")]
+    public int Code { get; set; }
 
     /// <summary>
     /// Error message.
     /// </summary>
-    public required string Message { get; init; }
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
 
     /// <summary>
     /// Additional error data.
     /// </summary>
-    public object? Data { get; init; }
+    [JsonPropertyName("data")]
+    public object? Data { get; set; }
 }

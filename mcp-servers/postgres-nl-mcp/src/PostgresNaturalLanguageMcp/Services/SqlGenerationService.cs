@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
-using PostgresMcp.Models;
+using PostgresNaturalLanguageMcp.Models;
 using System.Text.RegularExpressions;
 
-namespace PostgresMcp.Services;
+namespace PostgresNaturalLanguageMcp.Services;
 
 /// <summary>
 /// Service for generating SQL queries from natural language using AI.

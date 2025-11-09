@@ -1,13 +1,13 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
-using System.Text.Json;
 
 namespace PostgresMcp.Controllers;
 
 /// <summary>
-/// MCP (Model Context Protocol) controller exposing PostgreSQL database tools.
-/// Implements the MCP specification for tool discovery and execution.
+/// MCP (Model Context Protocol) controller for PostgreSQL database operations.
 /// </summary>
 [ApiController]
 [Route("mcp")]
@@ -15,172 +15,116 @@ public class McpController(
     ILogger<McpController> logger,
     IDatabaseSchemaService schemaService,
     IQueryService queryService,
-    ISqlGenerationService sqlGenerationService) : ControllerBase
+    IOptions<PostgresOptions> postgresOptions) : ControllerBase
 {
+    private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
+
     /// <summary>
-    /// Lists all available MCP tools.
-    /// Endpoint: GET /mcp/tools
+    /// List all available MCP tools.
     /// </summary>
     [HttpGet("tools")]
-    [ProducesResponseType(typeof(McpListToolsResponse), StatusCodes.Status200OK)]
-    public IActionResult ListTools()
+    public IActionResult GetTools()
     {
-        List<McpTool> tools =
-        [
-            new McpTool
-            {
-                Name = "scan_database_structure",
-                Description = "Analyze and describe PostgreSQL database schema including tables, columns, relationships, constraints, and indexes. Answers natural language questions about the schema.",
-                InputSchema = new
+        var tools = new McpToolsResponse
+        {
+            Tools =
+            [
+                new McpTool
                 {
-                    type = "object",
-                    properties = new
+                    Name = "scan_database_structure",
+                    Description = "Scan and analyze PostgreSQL database structure including tables, columns, indexes, foreign keys, and relationships. This is a read-only operation.",
+                    InputSchema = new
                     {
-                        connectionString = new
+                        type = "object",
+                        properties = new
                         {
-                            type = "string",
-                            description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                            connectionString = new
+                            {
+                                type = "string",
+                                description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                            }
                         },
-                        schemaFilter = new
-                        {
-                            type = "string",
-                            description = "Optional schema filter (e.g., 'public'). If not specified, all accessible schemas are scanned."
-                        },
-                        question = new
-                        {
-                            type = "string",
-                            description = "Optional natural language question about the schema (e.g., 'What tables have foreign keys to the users table?')"
-                        }
-                    },
-                    required = new[] { "connectionString" }
-                }
-            },
-            new McpTool
-            {
-                Name = "query_database_data",
-                Description = "Query and analyze data from PostgreSQL tables with automatic relationship detection. Converts natural language queries to SQL, follows foreign key relationships, and returns structured data with context.",
-                InputSchema = new
+                        required = new[] { "connectionString" }
+                    }
+                },
+                new McpTool
                 {
-                    type = "object",
-                    properties = new
+                    Name = "query_database",
+                    Description = "Execute a read-only SELECT query against the PostgreSQL database. Only SELECT queries are allowed - no data or schema modifications permitted.",
+                    InputSchema = new
                     {
-                        connectionString = new
+                        type = "object",
+                        properties = new
                         {
-                            type = "string",
-                            description = "PostgreSQL connection string"
+                            connectionString = new
+                            {
+                                type = "string",
+                                description = "PostgreSQL connection string"
+                            },
+                            query = new
+                            {
+                                type = "string",
+                                description = "SQL SELECT query to execute (must be read-only)"
+                            }
                         },
-                        query = new
-                        {
-                            type = "string",
-                            description = "Natural language query describing what data to retrieve (e.g., 'Show me all users who made orders in the last 30 days with their order totals')"
-                        }
-                    },
-                    required = new[] { "connectionString", "query" }
+                        required = new[] { "connectionString", "query" }
+                    }
                 }
-            },
-            new McpTool
-            {
-                Name = "advanced_sql_query",
-                Description = "Generate and execute optimized SQL queries from natural language descriptions. Uses AI to convert requests to SQL, validates safety, optimizes performance, and returns both the query and results with explanations.",
-                InputSchema = new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        connectionString = new
-                        {
-                            type = "string",
-                            description = "PostgreSQL connection string"
-                        },
-                        naturalLanguageQuery = new
-                        {
-                            type = "string",
-                            description = "Detailed natural language description of the desired query (e.g., 'Calculate the average order value by customer segment for Q4 2024, showing only segments with more than 100 orders')"
-                        }
-                    },
-                    required = new[] { "connectionString", "naturalLanguageQuery" }
-                }
-            }
-        ];
+            ]
+        };
 
-        return Ok(new McpListToolsResponse { Tools = tools });
+        return Ok(tools);
     }
 
     /// <summary>
-    /// Executes an MCP tool.
-    /// Endpoint: POST /mcp/tools/call
+    /// Call a specific MCP tool.
     /// </summary>
     [HttpPost("tools/call")]
-    [ProducesResponseType(typeof(McpToolCallResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(McpToolCallResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(McpToolCallResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> CallTool(
-        [FromBody] McpToolCallRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> CallTool([FromBody] McpToolCallRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogInformation("Calling MCP tool: {ToolName}", request.Name);
+            logger.LogInformation("Tool call: {ToolName}", request.Name);
 
-            var result = request.Name switch
+            var response = request.Name switch
             {
-                "scan_database_structure" => await ExecuteScanDatabaseStructure(request.Arguments, cancellationToken),
-                "query_database_data" => await ExecuteQueryDatabaseData(request.Arguments, cancellationToken),
-                "advanced_sql_query" => await ExecuteAdvancedSqlQuery(request.Arguments, cancellationToken),
+                "scan_database_structure" => await ScanDatabaseStructureAsync(request.Arguments, cancellationToken),
+                "query_database" => await QueryDatabaseAsync(request.Arguments, cancellationToken),
                 _ => new McpToolCallResponse
                 {
-                    Success = false,
-                    Error = $"Unknown tool: {request.Name}"
+                    IsError = true,
+                    Content = [new McpContent { Text = $"Unknown tool: {request.Name}" }]
                 }
             };
 
-            return result.Success ? Ok(result) : BadRequest(result);
+            return Ok(response);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing tool: {ToolName}", request.Name);
+            logger.LogError(ex, "Error calling tool: {ToolName}", request.Name);
 
-            return StatusCode(500, new McpToolCallResponse
+            return Ok(new McpToolCallResponse
             {
-                Success = false,
-                Error = $"Internal error: {ex.Message}"
+                IsError = true,
+                Content = [new McpContent { Text = $"Error: {ex.Message}" }]
             });
         }
     }
 
     /// <summary>
-    /// JSON-RPC 2.0 endpoint for MCP protocol compliance.
-    /// Endpoint: POST /mcp/jsonrpc
+    /// JSON-RPC 2.0 endpoint for MCP protocol.
     /// </summary>
     [HttpPost("jsonrpc")]
-    [ProducesResponseType(typeof(JsonRpcResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> JsonRpc(
-        [FromBody] JsonRpcRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> JsonRpc([FromBody] JsonRpcRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogInformation("JSON-RPC call: {Method}", request.Method);
-
             object? result = request.Method switch
             {
-                "tools/list" => await Task.FromResult(GetToolsList()),
-                "tools/call" => await ExecuteToolFromJsonRpc(request.Params, cancellationToken),
-                _ => null
+                "tools/list" => GetToolsList(),
+                "tools/call" => await HandleToolCall(request.Params, cancellationToken),
+                _ => throw new InvalidOperationException($"Unknown method: {request.Method}")
             };
-
-            if (result == null)
-            {
-                return Ok(new JsonRpcResponse
-                {
-                    Id = request.Id,
-                    Error = new JsonRpcError
-                    {
-                        Code = -32601,
-                        Message = $"Method not found: {request.Method}"
-                    }
-                });
-            }
 
             return Ok(new JsonRpcResponse
             {
@@ -190,7 +134,7 @@ public class McpController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "JSON-RPC error");
+            logger.LogError(ex, "JSON-RPC error: {Method}", request.Method);
 
             return Ok(new JsonRpcResponse
             {
@@ -205,210 +149,123 @@ public class McpController(
         }
     }
 
-    /// <summary>
-    /// Health check endpoint.
-    /// </summary>
-    [HttpGet("health")]
-    public IActionResult Health()
-    {
-        return Ok(new
-        {
-            status = "healthy",
-            timestamp = DateTime.UtcNow,
-            version = "1.0.0"
-        });
-    }
-
-    private async Task<McpToolCallResponse> ExecuteScanDatabaseStructure(
+    private async Task<McpToolCallResponse> ScanDatabaseStructureAsync(
         Dictionary<string, object?> arguments,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
-        var schemaFilter = GetOptionalArgument<string>(arguments, "schemaFilter");
-        var question = GetOptionalArgument<string>(arguments, "question");
+        var connectionString = GetConnectionString(arguments);
 
-        if (!string.IsNullOrEmpty(question))
+        var schema = await schemaService.ScanDatabaseSchemaAsync(connectionString, cancellationToken);
+
+        var schemaJson = JsonSerializer.Serialize(schema, new JsonSerializerOptions
         {
-            // Answer a specific question about the schema
-            var answer = await schemaService.AnswerSchemaQuestionAsync(
-                connectionString,
-                question,
-                cancellationToken);
+            WriteIndented = true
+        });
 
+        return new McpToolCallResponse
+        {
+            IsError = false,
+            Content = [new McpContent { Text = schemaJson }]
+        };
+    }
+
+    private async Task<McpToolCallResponse> QueryDatabaseAsync(
+        Dictionary<string, object?> arguments,
+        CancellationToken cancellationToken)
+    {
+        var connectionString = GetConnectionString(arguments);
+
+        if (!arguments.TryGetValue("query", out var queryObj) || queryObj == null)
+        {
+            throw new ArgumentException("Missing required argument: query");
+        }
+
+        var query = queryObj.ToString() ?? throw new ArgumentException("Query cannot be null");
+
+        // Validate query safety first
+        if (!queryService.ValidateQuerySafety(query))
+        {
             return new McpToolCallResponse
             {
-                Success = true,
-                Data = new { answer, question },
-                Metadata = new Dictionary<string, object>
+                IsError = true,
+                Content = [new McpContent
                 {
-                    ["executedAt"] = DateTime.UtcNow,
-                    ["hasAiResponse"] = true
-                }
+                    Text = "Query validation failed: Only SELECT queries are allowed. Data modifications (INSERT/UPDATE/DELETE) and schema modifications (CREATE/ALTER/DROP) are blocked."
+                }]
             };
         }
 
-        // Scan the entire schema
-        var schema = await schemaService.ScanDatabaseSchemaAsync(
-            connectionString,
-            schemaFilter,
-            cancellationToken);
+        var result = await queryService.ExecuteQueryAsync(connectionString, query, cancellationToken);
+
+        var resultJson = JsonSerializer.Serialize(result, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
 
         return new McpToolCallResponse
         {
-            Success = true,
-            Data = schema,
-            Metadata = new Dictionary<string, object>
-            {
-                ["executedAt"] = DateTime.UtcNow,
-                ["tableCount"] = schema.TableCount,
-                ["serverVersion"] = schema.ServerVersion ?? "unknown"
-            }
+            IsError = false,
+            Content = [new McpContent { Text = resultJson }]
         };
     }
 
-    private async Task<McpToolCallResponse> ExecuteQueryDatabaseData(
-        Dictionary<string, object?> arguments,
-        CancellationToken cancellationToken)
+    private string GetConnectionString(Dictionary<string, object?> arguments)
     {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
-        var query = GetRequiredArgument<string>(arguments, "query");
-
-        var result = await queryService.QueryDataAsync(
-            connectionString,
-            query,
-            cancellationToken);
-
-        return new McpToolCallResponse
+        if (arguments.TryGetValue("connectionString", out var connStrObj) && connStrObj != null)
         {
-            Success = true,
-            Data = result,
-            Metadata = new Dictionary<string, object>
-            {
-                ["executedAt"] = DateTime.UtcNow,
-                ["rowCount"] = result.RowCount,
-                ["executionTimeMs"] = result.ExecutionTimeMs
-            }
-        };
-    }
+            return connStrObj.ToString() ?? throw new ArgumentException("Connection string cannot be null");
+        }
 
-    private async Task<McpToolCallResponse> ExecuteAdvancedSqlQuery(
-        Dictionary<string, object?> arguments,
-        CancellationToken cancellationToken)
-    {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
-        var naturalLanguageQuery = GetRequiredArgument<string>(arguments, "naturalLanguageQuery");
-
-        var result = await sqlGenerationService.GenerateAndExecuteQueryAsync(
-            connectionString,
-            naturalLanguageQuery,
-            cancellationToken);
-
-        return new McpToolCallResponse
+        // Use default connection string if not provided
+        if (!string.IsNullOrEmpty(_postgresOptions.DefaultConnectionString))
         {
-            Success = result.IsSafe,
-            Data = result,
-            Metadata = new Dictionary<string, object>
-            {
-                ["executedAt"] = DateTime.UtcNow,
-                ["isSafe"] = result.IsSafe,
-                ["confidence"] = result.ConfidenceScore ?? 0.0
-            }
-        };
+            return _postgresOptions.DefaultConnectionString;
+        }
+
+        throw new ArgumentException("No connection string provided and no default configured");
     }
 
-    private McpListToolsResponse GetToolsList()
+    private object GetToolsList()
     {
-        var listToolsResult = ListTools() as OkObjectResult;
-        return (listToolsResult?.Value as McpListToolsResponse)!;
+        var tools = new McpToolsResponse
+        {
+            Tools = GetTools().Value as McpToolsResponse
+                ?? throw new InvalidOperationException("Failed to get tools")
+        };
+
+        return tools;
     }
 
-    private async Task<object> ExecuteToolFromJsonRpc(
-        object? parameters,
-        CancellationToken cancellationToken)
+    private async Task<object> HandleToolCall(Dictionary<string, object?>? parameters, CancellationToken cancellationToken)
     {
         if (parameters == null)
         {
-            throw new ArgumentException("Parameters are required for tool execution");
+            throw new ArgumentException("Missing parameters");
         }
 
-        // Parse parameters as McpToolCallRequest
-        var json = JsonSerializer.Serialize(parameters);
-        var request = JsonSerializer.Deserialize<McpToolCallRequest>(json)
-            ?? throw new ArgumentException("Invalid tool call parameters");
-
-        var result = await CallTool(request, cancellationToken);
-
-        if (result is OkObjectResult okResult)
+        if (!parameters.TryGetValue("name", out var nameObj) || nameObj == null)
         {
-            return okResult.Value!;
-        }
-        else if (result is BadRequestObjectResult badResult)
-        {
-            throw new Exception(badResult.Value?.ToString() ?? "Bad request");
-        }
-        else
-        {
-            throw new Exception("Unknown error");
-        }
-    }
-
-    private static T GetRequiredArgument<T>(Dictionary<string, object?> arguments, string key)
-    {
-        if (!arguments.TryGetValue(key, out var value) || value == null)
-        {
-            throw new ArgumentException($"Required argument '{key}' is missing");
+            throw new ArgumentException("Missing tool name");
         }
 
-        if (value is JsonElement jsonElement)
+        if (!parameters.TryGetValue("arguments", out var argsObj) || argsObj == null)
         {
-            return JsonSerializer.Deserialize<T>(jsonElement.GetRawText())
-                ?? throw new ArgumentException($"Cannot deserialize argument '{key}'");
+            throw new ArgumentException("Missing tool arguments");
         }
 
-        if (value is T typedValue)
-        {
-            return typedValue;
-        }
+        var name = nameObj.ToString() ?? throw new ArgumentException("Tool name cannot be null");
 
-        // Try to convert
-        try
-        {
-            return (T)Convert.ChangeType(value, typeof(T));
-        }
-        catch
-        {
-            throw new ArgumentException($"Cannot convert argument '{key}' to type {typeof(T).Name}");
-        }
-    }
+        var arguments = JsonSerializer.Deserialize<Dictionary<string, object?>>(
+            argsObj.ToString() ?? "{}") ?? [];
 
-    private static T? GetOptionalArgument<T>(Dictionary<string, object?> arguments, string key)
-    {
-        try
+        var request = new McpToolCallRequest
         {
-            if (!arguments.TryGetValue(key, out var value) || value == null)
-            {
-                return default;
-            }
+            Name = name,
+            Arguments = arguments
+        };
 
-            if (value is JsonElement jsonElement)
-            {
-                if (jsonElement.ValueKind == JsonValueKind.Null)
-                {
-                    return default;
-                }
-                return JsonSerializer.Deserialize<T>(jsonElement.GetRawText());
-            }
+        var response = await CallTool(request, cancellationToken);
 
-            if (value is T typedValue)
-            {
-                return typedValue;
-            }
-
-            return (T)Convert.ChangeType(value, typeof(T));
-        }
-        catch
-        {
-            return default;
-        }
+        return ((ObjectResult)response).Value ?? throw new InvalidOperationException("Failed to call tool");
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace PostgresMcp.Services;
+﻿namespace PostgresNaturalLanguageMcp.Services;
 
 public static class DbQueries
 {

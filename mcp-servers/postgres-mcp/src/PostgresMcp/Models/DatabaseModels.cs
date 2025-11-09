@@ -1,24 +1,24 @@
 namespace PostgresMcp.Models;
 
 /// <summary>
-/// Represents a comprehensive database schema structure.
+/// Represents a complete database schema.
 /// </summary>
-public record DatabaseSchema
+public class DatabaseSchema
 {
+    /// <summary>
+    /// PostgreSQL server version.
+    /// </summary>
+    public string ServerVersion { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Database name.
+    /// </summary>
+    public string DatabaseName { get; set; } = string.Empty;
+
     /// <summary>
     /// List of tables in the database.
     /// </summary>
-    public required List<TableInfo> Tables { get; init; }
-
-    /// <summary>
-    /// List of views in the database.
-    /// </summary>
-    public List<ViewInfo>? Views { get; init; }
-
-    /// <summary>
-    /// List of relationships between tables.
-    /// </summary>
-    public List<Relationship>? Relationships { get; init; }
+    public List<TableInfo> Tables { get; set; } = [];
 
     /// <summary>
     /// Total number of tables.
@@ -26,277 +26,216 @@ public record DatabaseSchema
     public int TableCount => Tables.Count;
 
     /// <summary>
-    /// Database server version.
+    /// List of relationships between tables.
     /// </summary>
-    public string? ServerVersion { get; init; }
+    public List<TableRelationship>? Relationships { get; set; }
 }
 
 /// <summary>
-/// Detailed information about a database table.
+/// Represents information about a database table.
 /// </summary>
-public record TableInfo
+public class TableInfo
 {
     /// <summary>
     /// Schema name (e.g., "public").
     /// </summary>
-    public required string SchemaName { get; init; }
+    public string SchemaName { get; set; } = string.Empty;
 
     /// <summary>
     /// Table name.
     /// </summary>
-    public required string TableName { get; init; }
+    public string TableName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Full qualified name (schema.table).
+    /// Full table name including schema (schema.table).
     /// </summary>
     public string FullName => $"{SchemaName}.{TableName}";
 
     /// <summary>
-    /// List of columns in the table.
+    /// Table comment/description.
     /// </summary>
-    public required List<ColumnInfo> Columns { get; init; }
-
-    /// <summary>
-    /// Primary key constraint information.
-    /// </summary>
-    public PrimaryKeyInfo? PrimaryKey { get; set; }
-
-    /// <summary>
-    /// Foreign key constraints.
-    /// </summary>
-    public List<ForeignKeyInfo>? ForeignKeys { get; set; }
-
-    /// <summary>
-    /// Indexes on the table.
-    /// </summary>
-    public List<IndexInfo>? Indexes { get; set; }
+    public string? Comment { get; set; }
 
     /// <summary>
     /// Estimated row count.
     /// </summary>
-    public long? RowCount { get; init; }
+    public long? RowCount { get; set; }
 
     /// <summary>
-    /// Table size in bytes.
+    /// List of columns in the table.
     /// </summary>
-    public long? SizeInBytes { get; init; }
+    public List<ColumnInfo> Columns { get; set; } = [];
 
     /// <summary>
-    /// Table comment/description.
+    /// Primary key information.
     /// </summary>
-    public string? Comment { get; init; }
+    public PrimaryKeyInfo? PrimaryKey { get; set; }
+
+    /// <summary>
+    /// List of foreign keys.
+    /// </summary>
+    public List<ForeignKeyInfo>? ForeignKeys { get; set; }
+
+    /// <summary>
+    /// List of indexes.
+    /// </summary>
+    public List<IndexInfo>? Indexes { get; set; }
 }
 
 /// <summary>
-/// Information about a database column.
+/// Represents a table column.
 /// </summary>
-public record ColumnInfo
+public class ColumnInfo
 {
     /// <summary>
     /// Column name.
     /// </summary>
-    public required string ColumnName { get; init; }
+    public string ColumnName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Data type (e.g., "integer", "varchar", "timestamp").
+    /// Data type (e.g., "integer", "varchar(255)").
     /// </summary>
-    public required string DataType { get; init; }
+    public string DataType { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the column allows NULL values.
     /// </summary>
-    public required bool IsNullable { get; init; }
+    public bool IsNullable { get; set; }
 
     /// <summary>
     /// Default value expression.
     /// </summary>
-    public string? DefaultValue { get; init; }
-
-    /// <summary>
-    /// Maximum length for character types.
-    /// </summary>
-    public int? MaxLength { get; init; }
-
-    /// <summary>
-    /// Numeric precision.
-    /// </summary>
-    public int? NumericPrecision { get; init; }
-
-    /// <summary>
-    /// Numeric scale.
-    /// </summary>
-    public int? NumericScale { get; init; }
-
-    /// <summary>
-    /// Ordinal position in the table.
-    /// </summary>
-    public required int OrdinalPosition { get; init; }
+    public string? DefaultValue { get; set; }
 
     /// <summary>
     /// Whether this is an identity/auto-increment column.
     /// </summary>
-    public bool IsIdentity { get; init; }
+    public bool IsIdentity { get; set; }
 
     /// <summary>
     /// Column comment/description.
     /// </summary>
-    public string? Comment { get; init; }
+    public string? Comment { get; set; }
+
+    /// <summary>
+    /// Ordinal position in the table.
+    /// </summary>
+    public int OrdinalPosition { get; set; }
 }
 
 /// <summary>
-/// Information about a primary key constraint.
+/// Represents a primary key.
 /// </summary>
-public record PrimaryKeyInfo
+public class PrimaryKeyInfo
 {
     /// <summary>
-    /// Constraint name.
+    /// Primary key constraint name.
     /// </summary>
-    public required string ConstraintName { get; init; }
+    public string ConstraintName { get; set; } = string.Empty;
 
     /// <summary>
-    /// List of column names that form the primary key.
+    /// List of columns in the primary key.
     /// </summary>
-    public required List<string> Columns { get; init; }
+    public List<string> Columns { get; set; } = [];
 }
 
 /// <summary>
-/// Information about a foreign key constraint.
+/// Represents a foreign key relationship.
 /// </summary>
-public record ForeignKeyInfo
+public class ForeignKeyInfo
 {
     /// <summary>
-    /// Constraint name.
+    /// Foreign key constraint name.
     /// </summary>
-    public required string ConstraintName { get; init; }
+    public string ConstraintName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Column name in this table.
+    /// Column name in the current table.
     /// </summary>
-    public required string ColumnName { get; init; }
+    public string ColumnName { get; set; } = string.Empty;
 
     /// <summary>
     /// Referenced schema name.
     /// </summary>
-    public required string ReferencedSchema { get; init; }
+    public string ReferencedSchema { get; set; } = string.Empty;
 
     /// <summary>
     /// Referenced table name.
     /// </summary>
-    public required string ReferencedTable { get; init; }
+    public string ReferencedTable { get; set; } = string.Empty;
 
     /// <summary>
     /// Referenced column name.
     /// </summary>
-    public required string ReferencedColumn { get; init; }
-
-    /// <summary>
-    /// ON DELETE action (CASCADE, SET NULL, etc.).
-    /// </summary>
-    public string? OnDelete { get; init; }
-
-    /// <summary>
-    /// ON UPDATE action.
-    /// </summary>
-    public string? OnUpdate { get; init; }
+    public string ReferencedColumn { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// Information about an index.
+/// Represents a table index.
 /// </summary>
-public record IndexInfo
+public class IndexInfo
 {
     /// <summary>
     /// Index name.
     /// </summary>
-    public required string IndexName { get; init; }
-
-    /// <summary>
-    /// List of column names in the index.
-    /// </summary>
-    public required List<string> Columns { get; init; }
+    public string IndexName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether this is a unique index.
     /// </summary>
-    public required bool IsUnique { get; init; }
-
-    /// <summary>
-    /// Index type (btree, hash, gin, gist, etc.).
-    /// </summary>
-    public string? IndexType { get; init; }
+    public bool IsUnique { get; set; }
 
     /// <summary>
     /// Whether this is a primary key index.
     /// </summary>
-    public bool IsPrimary { get; init; }
-}
-
-/// <summary>
-/// Information about a database view.
-/// </summary>
-public record ViewInfo
-{
-    /// <summary>
-    /// Schema name.
-    /// </summary>
-    public required string SchemaName { get; init; }
+    public bool IsPrimary { get; set; }
 
     /// <summary>
-    /// View name.
+    /// List of columns in the index.
     /// </summary>
-    public required string ViewName { get; init; }
-
-    /// <summary>
-    /// View definition (SQL).
-    /// </summary>
-    public string? Definition { get; init; }
-
-    /// <summary>
-    /// List of columns in the view.
-    /// </summary>
-    public List<ColumnInfo>? Columns { get; init; }
+    public List<string> Columns { get; set; } = [];
 }
 
 /// <summary>
 /// Represents a relationship between two tables.
 /// </summary>
-public record Relationship
+public class TableRelationship
 {
     /// <summary>
     /// Source table (schema.table).
     /// </summary>
-    public required string SourceTable { get; init; }
+    public string SourceTable { get; set; } = string.Empty;
 
     /// <summary>
     /// Target table (schema.table).
     /// </summary>
-    public required string TargetTable { get; init; }
+    public string TargetTable { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Relationship type (e.g., "one-to-many", "many-to-one").
+    /// </summary>
+    public string RelationType { get; set; } = string.Empty;
 
     /// <summary>
     /// Foreign key constraint name.
     /// </summary>
-    public required string ConstraintName { get; init; }
-
-    /// <summary>
-    /// Relationship type (one-to-many, many-to-one, etc.).
-    /// </summary>
-    public string? RelationType { get; init; }
+    public string ConstraintName { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// Result of a database query.
+/// Represents the result of a database query.
 /// </summary>
-public record QueryResult
+public class QueryResult
 {
     /// <summary>
-    /// Column names.
+    /// List of column names.
     /// </summary>
-    public required List<string> Columns { get; init; }
+    public List<string> Columns { get; set; } = [];
 
     /// <summary>
-    /// Rows of data.
+    /// Query result rows (each row is a dictionary of column name to value).
     /// </summary>
-    public required List<Dictionary<string, object?>> Rows { get; init; }
+    public List<Dictionary<string, object?>> Rows { get; set; } = [];
 
     /// <summary>
     /// Number of rows returned.
@@ -304,48 +243,12 @@ public record QueryResult
     public int RowCount => Rows.Count;
 
     /// <summary>
-    /// Execution time in milliseconds.
+    /// Query execution time in milliseconds.
     /// </summary>
-    public long ExecutionTimeMs { get; init; }
+    public long ExecutionTimeMs { get; set; }
 
     /// <summary>
-    /// Related tables that were involved in the query.
+    /// Whether the results were truncated due to max rows limit.
     /// </summary>
-    public List<string>? RelatedTables { get; init; }
-}
-
-/// <summary>
-/// Result of an AI-generated SQL query.
-/// </summary>
-public record SqlGenerationResult
-{
-    /// <summary>
-    /// The generated SQL query.
-    /// </summary>
-    public required string SqlQuery { get; init; }
-
-    /// <summary>
-    /// Explanation of what the query does.
-    /// </summary>
-    public string? Explanation { get; init; }
-
-    /// <summary>
-    /// The executed query results.
-    /// </summary>
-    public QueryResult? Results { get; init; }
-
-    /// <summary>
-    /// Confidence score (0-1) of the query generation.
-    /// </summary>
-    public double? ConfidenceScore { get; init; }
-
-    /// <summary>
-    /// Whether the query was validated as safe.
-    /// </summary>
-    public bool IsSafe { get; init; }
-
-    /// <summary>
-    /// Warnings or suggestions about the query.
-    /// </summary>
-    public List<string>? Warnings { get; init; }
+    public bool IsTruncated { get; set; }
 }
