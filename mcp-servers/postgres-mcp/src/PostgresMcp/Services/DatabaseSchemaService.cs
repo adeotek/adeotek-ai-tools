@@ -1,154 +1,127 @@
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel;
 using Npgsql;
 using PostgresMcp.Models;
-using System.Text;
 
 namespace PostgresMcp.Services;
 
 /// <summary>
-/// Service for scanning and analyzing PostgreSQL database schema.
+/// Service for scanning PostgreSQL database schemas.
 /// </summary>
 public class DatabaseSchemaService(
     ILogger<DatabaseSchemaService> logger,
-    IOptions<SecurityOptions> securityOptions,
-    Kernel? kernel = null)
+    IOptions<PostgresOptions> postgresOptions,
+    IOptions<SecurityOptions> securityOptions)
     : IDatabaseSchemaService
 {
+    private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
 
     /// <inheritdoc/>
     public async Task<DatabaseSchema> ScanDatabaseSchemaAsync(
         string connectionString,
-        string? schemaFilter = null,
         CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Scanning database schema with filter: {SchemaFilter}", schemaFilter ?? "none");
+        logger.LogInformation("Scanning database schema");
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var tables = await GetTablesAsync(connection, schemaFilter, cancellationToken);
-        var views = await GetViewsAsync(connection, schemaFilter, cancellationToken);
-        var relationships = await GetRelationshipsAsync(connection, schemaFilter, cancellationToken);
-        var serverVersion = connection.ServerVersion;
-
-        return new DatabaseSchema
+        var schema = new DatabaseSchema
         {
-            Tables = tables,
-            Views = views,
-            Relationships = relationships,
-            ServerVersion = serverVersion
+            ServerVersion = connection.ServerVersion,
+            DatabaseName = connection.Database
         };
+
+        // Get all tables
+        schema.Tables = await GetTablesAsync(connection, cancellationToken);
+
+        // Get relationships
+        schema.Relationships = BuildRelationships(schema.Tables);
+
+        logger.LogInformation("Schema scan complete: {TableCount} tables found", schema.TableCount);
+
+        return schema;
     }
 
-    /// <inheritdoc/>
-    public async Task<TableInfo?> GetTableInfoAsync(
-        string connectionString,
-        string schemaName,
-        string tableName,
-        CancellationToken cancellationToken = default)
+    private async Task<List<TableInfo>> GetTablesAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Getting table info for {Schema}.{Table}", schemaName, tableName);
+        var tables = new List<TableInfo>();
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        var tables = await GetTablesAsync(connection, schemaName, cancellationToken);
-        return tables.FirstOrDefault(t =>
-            t.SchemaName == schemaName &&
-            t.TableName == tableName);
-    }
-
-    /// <inheritdoc/>
-    public async Task<string> AnswerSchemaQuestionAsync(
-        string connectionString,
-        string question,
-        CancellationToken cancellationToken = default)
-    {
-        logger.LogInformation("Answering schema question: {Question}", question);
-
-        // Get the schema
-        var schema = await ScanDatabaseSchemaAsync(connectionString, null, cancellationToken);
-
-        if (kernel == null)
-        {
-            // Without AI, provide a structured text response
-            return FormatSchemaAsText(schema);
-        }
-
-        // Use AI to answer the question based on the schema
-        var schemaContext = FormatSchemaForAi(schema);
-        var prompt = $"""
-            You are a database expert. Answer the following question about the database schema.
-
-            Database Schema:
-            {schemaContext}
-
-            Question: {question}
-
-            Provide a clear, concise answer focused on the relevant parts of the schema.
+        const string tablesSql = """
+            SELECT
+                t.table_schema,
+                t.table_name,
+                obj_description((t.table_schema||'.'||t.table_name)::regclass, 'pg_class') as table_comment
+            FROM information_schema.tables t
+            WHERE t.table_type = 'BASE TABLE'
+              AND t.table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY t.table_schema, t.table_name
             """;
 
-        var response = await kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
-        return response.ToString();
-    }
-
-    private async Task<List<TableInfo>> GetTablesAsync(
-        NpgsqlConnection connection,
-        string? schemaFilter,
-        CancellationToken cancellationToken)
-    {
-        List<TableInfo> tables = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetTablesSql, connection);
-        cmd.Parameters.AddWithValue("schemaFilter", (object?)schemaFilter ?? DBNull.Value);
-
+        await using var cmd = new NpgsqlCommand(tablesSql, connection);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
         while (await reader.ReadAsync(cancellationToken))
         {
             var schemaName = reader.GetString(0);
             var tableName = reader.GetString(1);
+            var comment = reader.IsDBNull(2) ? null : reader.GetString(2);
 
-            // Apply security filters
-            if (IsSchemaBlocked(schemaName)) continue;
+            // Apply schema filters
+            if (!IsSchemaAllowed(schemaName))
+                continue;
 
             var table = new TableInfo
             {
                 SchemaName = schemaName,
                 TableName = tableName,
-                Columns = [],
-                RowCount = reader.IsDBNull(2) ? null : reader.GetInt64(2),
-                SizeInBytes = reader.IsDBNull(3) ? null : reader.GetInt64(3),
-                Comment = reader.IsDBNull(4) ? null : reader.GetString(4)
+                Comment = comment
             };
 
             tables.Add(table);
         }
 
-        // Get detailed information for each table
+        // Get details for each table
         foreach (var table in tables)
         {
-            table.Columns.AddRange(await GetColumnsAsync(connection, table.SchemaName, table.TableName, cancellationToken));
+            table.Columns = await GetColumnsAsync(connection, table.SchemaName, table.TableName, cancellationToken);
             table.PrimaryKey = await GetPrimaryKeyAsync(connection, table.SchemaName, table.TableName, cancellationToken);
             table.ForeignKeys = await GetForeignKeysAsync(connection, table.SchemaName, table.TableName, cancellationToken);
             table.Indexes = await GetIndexesAsync(connection, table.SchemaName, table.TableName, cancellationToken);
+            table.RowCount = await GetRowCountAsync(connection, table.SchemaName, table.TableName, cancellationToken);
         }
 
         return tables;
     }
 
-    private static async Task<List<ColumnInfo>> GetColumnsAsync(
+    private async Task<List<ColumnInfo>> GetColumnsAsync(
         NpgsqlConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
     {
-        List<ColumnInfo> columns = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetColumnsSql, connection);
-        cmd.Parameters.AddWithValue("schemaName", schemaName);
-        cmd.Parameters.AddWithValue("tableName", tableName);
+        var columns = new List<ColumnInfo>();
+
+        const string columnsSql = """
+            SELECT
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                c.column_default,
+                c.ordinal_position,
+                CASE WHEN c.column_default LIKE 'nextval%' THEN true ELSE false END as is_identity,
+                col_description((c.table_schema||'.'||c.table_name)::regclass, c.ordinal_position) as column_comment
+            FROM information_schema.columns c
+            WHERE c.table_schema = $1 AND c.table_name = $2
+            ORDER BY c.ordinal_position
+            """;
+
+        await using var cmd = new NpgsqlCommand(columnsSql, connection);
+        cmd.Parameters.AddWithValue(schemaName);
+        cmd.Parameters.AddWithValue(tableName);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
         while (await reader.ReadAsync(cancellationToken))
         {
             columns.Add(new ColumnInfo
@@ -157,53 +130,91 @@ public class DatabaseSchemaService(
                 DataType = reader.GetString(1),
                 IsNullable = reader.GetString(2) == "YES",
                 DefaultValue = reader.IsDBNull(3) ? null : reader.GetString(3),
-                MaxLength = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                NumericPrecision = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-                NumericScale = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-                OrdinalPosition = reader.GetInt32(7),
-                IsIdentity = reader.GetString(8) == "YES",
-                Comment = reader.IsDBNull(9) ? null : reader.GetString(9)
+                OrdinalPosition = reader.GetInt32(4),
+                IsIdentity = reader.GetBoolean(5),
+                Comment = reader.IsDBNull(6) ? null : reader.GetString(6)
             });
         }
 
         return columns;
     }
 
-    private static async Task<PrimaryKeyInfo?> GetPrimaryKeyAsync(
+    private async Task<PrimaryKeyInfo?> GetPrimaryKeyAsync(
         NpgsqlConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
     {
-        await using var cmd = new NpgsqlCommand(DbQueries.GetPrimaryKeySql, connection);
-        cmd.Parameters.AddWithValue("schemaName", schemaName);
-        cmd.Parameters.AddWithValue("tableName", tableName);
+        const string pkSql = """
+            SELECT
+                tc.constraint_name,
+                kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            WHERE tc.constraint_type = 'PRIMARY KEY'
+              AND tc.table_schema = $1
+              AND tc.table_name = $2
+            ORDER BY kcu.ordinal_position
+            """;
+
+        await using var cmd = new NpgsqlCommand(pkSql, connection);
+        cmd.Parameters.AddWithValue(schemaName);
+        cmd.Parameters.AddWithValue(tableName);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+
+        PrimaryKeyInfo? pk = null;
+        while (await reader.ReadAsync(cancellationToken))
         {
-            return new PrimaryKeyInfo
+            if (pk == null)
             {
-                ConstraintName = reader.GetString(0),
-                Columns = reader.GetString(1).Split(',').ToList()
-            };
+                pk = new PrimaryKeyInfo
+                {
+                    ConstraintName = reader.GetString(0),
+                    Columns = []
+                };
+            }
+            pk.Columns.Add(reader.GetString(1));
         }
 
-        return null;
+        return pk;
     }
 
-    private static async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(
+    private async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(
         NpgsqlConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
     {
-        List<ForeignKeyInfo> foreignKeys = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetForeignKeysSql, connection);
-        cmd.Parameters.AddWithValue("schemaName", schemaName);
-        cmd.Parameters.AddWithValue("tableName", tableName);
+        var foreignKeys = new List<ForeignKeyInfo>();
+
+        const string fkSql = """
+            SELECT
+                tc.constraint_name,
+                kcu.column_name,
+                ccu.table_schema AS foreign_table_schema,
+                ccu.table_name AS foreign_table_name,
+                ccu.column_name AS foreign_column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu
+                ON ccu.constraint_name = tc.constraint_name
+                AND ccu.table_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = $1
+              AND tc.table_name = $2
+            """;
+
+        await using var cmd = new NpgsqlCommand(fkSql, connection);
+        cmd.Parameters.AddWithValue(schemaName);
+        cmd.Parameters.AddWithValue(tableName);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
         while (await reader.ReadAsync(cancellationToken))
         {
             foreignKeys.Add(new ForeignKeyInfo
@@ -212,9 +223,7 @@ public class DatabaseSchemaService(
                 ColumnName = reader.GetString(1),
                 ReferencedSchema = reader.GetString(2),
                 ReferencedTable = reader.GetString(3),
-                ReferencedColumn = reader.GetString(4),
-                OnDelete = reader.GetString(5),
-                OnUpdate = reader.GetString(6)
+                ReferencedColumn = reader.GetString(4)
             });
         }
 
@@ -227,159 +236,121 @@ public class DatabaseSchemaService(
         string tableName,
         CancellationToken cancellationToken)
     {
-        List<IndexInfo> indexes = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetIndexesSql, connection);
-        cmd.Parameters.AddWithValue("schemaName", schemaName);
-        cmd.Parameters.AddWithValue("tableName", tableName);
+        var indexes = new List<IndexInfo>();
+
+        const string indexSql = """
+            SELECT
+                i.indexname,
+                i.indexdef,
+                idx.indisunique,
+                idx.indisprimary
+            FROM pg_indexes i
+            JOIN pg_class c ON c.relname = i.indexname
+            JOIN pg_index idx ON idx.indexrelid = c.oid
+            WHERE i.schemaname = $1 AND i.tablename = $2
+            """;
+
+        await using var cmd = new NpgsqlCommand(indexSql, connection);
+        cmd.Parameters.AddWithValue(schemaName);
+        cmd.Parameters.AddWithValue(tableName);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
         while (await reader.ReadAsync(cancellationToken))
         {
+            var indexName = reader.GetString(0);
+            var indexDef = reader.GetString(1);
+            var isUnique = reader.GetBoolean(2);
+            var isPrimary = reader.GetBoolean(3);
+
+            // Extract column names from index definition
+            var columns = ExtractColumnsFromIndexDef(indexDef);
+
             indexes.Add(new IndexInfo
             {
-                IndexName = reader.GetString(0),
-                Columns = ((string[])reader.GetValue(1)).ToList(),
-                IsUnique = reader.GetBoolean(2),
-                IndexType = reader.GetString(3),
-                IsPrimary = reader.GetBoolean(4)
+                IndexName = indexName,
+                IsUnique = isUnique,
+                IsPrimary = isPrimary,
+                Columns = columns
             });
         }
 
         return indexes;
     }
 
-    private async Task<List<ViewInfo>> GetViewsAsync(
+    private async Task<long?> GetRowCountAsync(
         NpgsqlConnection connection,
-        string? schemaFilter,
+        string schemaName,
+        string tableName,
         CancellationToken cancellationToken)
     {
-        List<ViewInfo> views = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetViewsSql, connection);
-        cmd.Parameters.AddWithValue("schemaFilter", (object?)schemaFilter ?? DBNull.Value);
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        try
         {
-            var schemaName = reader.GetString(0);
+            const string countSql = "SELECT reltuples::bigint FROM pg_class WHERE oid = $1::regclass";
+            await using var cmd = new NpgsqlCommand(countSql, connection);
+            cmd.Parameters.AddWithValue($"{schemaName}.{tableName}");
 
-            if (IsSchemaBlocked(schemaName))
-                continue;
-
-            views.Add(new ViewInfo
-            {
-                SchemaName = schemaName,
-                ViewName = reader.GetString(1),
-                Definition = reader.IsDBNull(2) ? null : reader.GetString(2)
-            });
+            var result = await cmd.ExecuteScalarAsync(cancellationToken);
+            return result as long?;
         }
-
-        return views;
+        catch
+        {
+            return null;
+        }
     }
 
-    private static async Task<List<Relationship>> GetRelationshipsAsync(
-        NpgsqlConnection connection,
-        string? schemaFilter,
-        CancellationToken cancellationToken)
+    private List<TableRelationship> BuildRelationships(List<TableInfo> tables)
     {
-        List<Relationship> relationships = [];
-        await using var cmd = new NpgsqlCommand(DbQueries.GetRelationshipsSql, connection);
-        cmd.Parameters.AddWithValue("schemaFilter", (object?)schemaFilter ?? DBNull.Value);
+        var relationships = new List<TableRelationship>();
 
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        foreach (var table in tables)
         {
-            relationships.Add(new Relationship
+            if (table.ForeignKeys == null) continue;
+
+            foreach (var fk in table.ForeignKeys)
             {
-                SourceTable = reader.GetString(0),
-                TargetTable = reader.GetString(1),
-                ConstraintName = reader.GetString(2),
-                RelationType = "many-to-one"
-            });
+                relationships.Add(new TableRelationship
+                {
+                    SourceTable = table.FullName,
+                    TargetTable = $"{fk.ReferencedSchema}.{fk.ReferencedTable}",
+                    RelationType = "many-to-one",
+                    ConstraintName = fk.ConstraintName
+                });
+            }
         }
 
         return relationships;
     }
 
-    private bool IsSchemaBlocked(string schemaName)
+    private bool IsSchemaAllowed(string schemaName)
     {
+        // Check blocked schemas
         if (_securityOptions.BlockedSchemas.Contains(schemaName))
-        {
-            return true;
-        }
+            return false;
 
-        return _securityOptions.AllowedSchemas.Count != 0 &&
-               !_securityOptions.AllowedSchemas.Contains(schemaName);
+        // Check allowed schemas (if specified)
+        if (_securityOptions.AllowedSchemas.Count > 0 &&
+            !_securityOptions.AllowedSchemas.Contains(schemaName))
+            return false;
+
+        return true;
     }
 
-    private static string FormatSchemaAsText(DatabaseSchema schema)
+    private static List<string> ExtractColumnsFromIndexDef(string indexDef)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Database Schema (PostgreSQL {schema.ServerVersion})");
-        sb.AppendLine($"Total Tables: {schema.TableCount}");
-        sb.AppendLine();
+        // Simple extraction of column names from index definition
+        // Example: "CREATE INDEX idx_name ON schema.table USING btree (col1, col2)"
+        var columns = new List<string>();
 
-        foreach (var table in schema.Tables)
+        var startIdx = indexDef.IndexOf('(');
+        var endIdx = indexDef.LastIndexOf(')');
+
+        if (startIdx >= 0 && endIdx > startIdx)
         {
-            sb.AppendLine($"Table: {table.FullName}");
-            if (!string.IsNullOrEmpty(table.Comment))
-                sb.AppendLine($"  Description: {table.Comment}");
-
-            sb.AppendLine($"  Columns:");
-            foreach (var col in table.Columns)
-            {
-                var nullable = col.IsNullable ? "NULL" : "NOT NULL";
-                sb.AppendLine($"    - {col.ColumnName}: {col.DataType} {nullable}");
-            }
-
-            if (table.PrimaryKey != null)
-                sb.AppendLine($"  Primary Key: {string.Join(", ", table.PrimaryKey.Columns)}");
-
-            if (table.ForeignKeys?.Any() == true)
-            {
-                sb.AppendLine($"  Foreign Keys:");
-                foreach (var fk in table.ForeignKeys)
-                {
-                    sb.AppendLine($"    - {fk.ColumnName} → {fk.ReferencedSchema}.{fk.ReferencedTable}.{fk.ReferencedColumn}");
-                }
-            }
-
-            sb.AppendLine();
+            var columnsPart = indexDef.Substring(startIdx + 1, endIdx - startIdx - 1);
+            columns.AddRange(columnsPart.Split(',').Select(c => c.Trim()));
         }
 
-        return sb.ToString();
-    }
-
-    private string FormatSchemaForAi(DatabaseSchema schema)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"PostgreSQL {schema.ServerVersion} with {schema.TableCount} tables:");
-
-        foreach (var table in schema.Tables)
-        {
-            sb.AppendLine($"\nTable: {table.FullName}");
-            if (!string.IsNullOrEmpty(table.Comment))
-                sb.AppendLine($"Description: {table.Comment}");
-
-            sb.AppendLine("Columns:");
-            foreach (var col in table.Columns)
-            {
-                List<string> parts = [col.ColumnName, col.DataType];
-                if (!col.IsNullable) parts.Add("NOT NULL");
-                if (col.IsIdentity) parts.Add("IDENTITY");
-                if (!string.IsNullOrEmpty(col.DefaultValue)) parts.Add($"DEFAULT {col.DefaultValue}");
-                sb.AppendLine($"  - {string.Join(" ", parts)}");
-            }
-
-            if (table.PrimaryKey != null)
-                sb.AppendLine($"PK: {string.Join(", ", table.PrimaryKey.Columns)}");
-
-            if (table.ForeignKeys?.Any() == true)
-            {
-                foreach (var fk in table.ForeignKeys)
-                    sb.AppendLine($"FK: {fk.ColumnName} → {fk.ReferencedSchema}.{fk.ReferencedTable}.{fk.ReferencedColumn}");
-            }
-        }
-
-        return sb.ToString();
+        return columns;
     }
 }

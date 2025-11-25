@@ -1,5 +1,4 @@
 using AspNetCoreRateLimit;
-using Microsoft.SemanticKernel;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 using Scalar.AspNetCore;
@@ -32,50 +31,14 @@ builder.Services.AddControllers()
 // Configure options
 builder.Services.Configure<PostgresOptions>(
     builder.Configuration.GetSection(PostgresOptions.SectionName));
-builder.Services.Configure<AiOptions>(
-    builder.Configuration.GetSection(AiOptions.SectionName));
 builder.Services.Configure<SecurityOptions>(
     builder.Configuration.GetSection(SecurityOptions.SectionName));
 builder.Services.Configure<LoggingOptions>(
     builder.Configuration.GetSection(LoggingOptions.SectionName));
 
-// Configure Semantic Kernel with AI
-var aiOptions = builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>();
-if (aiOptions?.Enabled == true && !string.IsNullOrEmpty(aiOptions.ApiKey))
-{
-    var kernelBuilder = Kernel.CreateBuilder();
-
-    if (!string.IsNullOrEmpty(aiOptions.AzureEndpoint))
-    {
-        // Azure OpenAI
-        kernelBuilder.AddAzureOpenAIChatCompletion(
-            deploymentName: aiOptions.AzureDeploymentName ?? aiOptions.Model,
-            endpoint: aiOptions.AzureEndpoint,
-            apiKey: aiOptions.ApiKey);
-    }
-    else
-    {
-        // OpenAI
-        kernelBuilder.AddOpenAIChatCompletion(
-            modelId: aiOptions.Model,
-            apiKey: aiOptions.ApiKey);
-    }
-
-    var kernel = kernelBuilder.Build();
-    builder.Services.AddSingleton(kernel);
-
-    Log.Information("AI features enabled with model: {Model}", aiOptions.Model);
-}
-else
-{
-    Log.Warning("AI features are disabled or not configured");
-    builder.Services.AddSingleton<Kernel>(_ => null!);
-}
-
 // Register application services
 builder.Services.AddScoped<IDatabaseSchemaService, DatabaseSchemaService>();
 builder.Services.AddScoped<IQueryService, QueryService>();
-builder.Services.AddScoped<ISqlGenerationService, SqlGenerationService>();
 
 // Configure rate limiting
 var securityOptions = builder.Configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>();
@@ -158,7 +121,13 @@ app.MapGet("/", () => Results.Json(new
 {
     name = "PostgreSQL MCP Server",
     version = "1.0.0",
-    description = "Model Context Protocol server for PostgreSQL database operations",
+    description = "Read-only Model Context Protocol server for PostgreSQL database operations",
+    capabilities = new
+    {
+        readOnly = true,
+        dataModificationsBlocked = true,
+        schemaModificationsBlocked = true
+    },
     endpoints = new
     {
         tools = "/mcp/tools",
@@ -170,7 +139,7 @@ app.MapGet("/", () => Results.Json(new
     documentation = "/scalar/v1"
 }));
 
-Log.Information("Starting PostgreSQL MCP Server");
+Log.Information("Starting PostgreSQL MCP Server (Read-Only)");
 Log.Information("Environment: {Environment}", app.Environment.EnvironmentName);
 
 try

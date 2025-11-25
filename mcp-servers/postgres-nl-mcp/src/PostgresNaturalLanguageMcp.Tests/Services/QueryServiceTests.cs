@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using PostgresMcp.Models;
-using PostgresMcp.Services;
+using PostgresNaturalLanguageMcp.Models;
+using PostgresNaturalLanguageMcp.Services;
 
-namespace PostgresMcp.Tests.Services;
+namespace PostgresNaturalLanguageMcp.Tests.Services;
 
 public class QueryServiceTests
 {

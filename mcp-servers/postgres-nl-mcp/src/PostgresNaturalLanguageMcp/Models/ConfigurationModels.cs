@@ -1,4 +1,4 @@
-namespace PostgresMcp.Models;
+namespace PostgresNaturalLanguageMcp.Models;
 
 /// <summary>
 /// PostgreSQL database connection settings.
@@ -47,6 +47,71 @@ public class PostgresOptions
 }
 
 /// <summary>
+/// AI/LLM configuration for query generation.
+/// </summary>
+public class AiOptions
+{
+    /// <summary>
+    /// Configuration section name.
+    /// </summary>
+    public const string SectionName = "Ai";
+
+    /// <summary>
+    /// LLM provider to use (openai, anthropic, gemini, ollama, lmstudio, azureopenai).
+    /// </summary>
+    public string Provider { get; set; } = "openai";
+
+    /// <summary>
+    /// API key for the LLM provider (OpenAI, Anthropic, Gemini, or Azure OpenAI).
+    /// </summary>
+    public string? ApiKey { get; set; }
+
+    /// <summary>
+    /// Model to use for query generation.
+    /// - OpenAI: "gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo"
+    /// - Anthropic: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229"
+    /// - Gemini: "gemini-1.5-pro", "gemini-1.5-flash"
+    /// - Ollama: "llama2", "llama3", "mistral", "codellama"
+    /// - LM Studio: any locally loaded model name
+    /// </summary>
+    public string Model { get; set; } = "gpt-4";
+
+    /// <summary>
+    /// Base URL for local or custom LLM providers (Ollama, LM Studio).
+    /// - Ollama default: http://localhost:11434
+    /// - LM Studio default: http://localhost:1234
+    /// </summary>
+    public string? BaseUrl { get; set; }
+
+    /// <summary>
+    /// Azure OpenAI endpoint (if using Azure OpenAI provider).
+    /// Example: https://your-resource.openai.azure.com
+    /// </summary>
+    public string? AzureEndpoint { get; set; }
+
+    /// <summary>
+    /// Azure OpenAI deployment name (if using Azure OpenAI provider).
+    /// </summary>
+    public string? AzureDeploymentName { get; set; }
+
+    /// <summary>
+    /// Maximum tokens for AI responses.
+    /// </summary>
+    public int MaxTokens { get; set; } = 2000;
+
+    /// <summary>
+    /// Temperature for AI responses (0.0 - 1.0).
+    /// Lower values = more focused, higher values = more creative.
+    /// </summary>
+    public double Temperature { get; set; } = 0.1;
+
+    /// <summary>
+    /// Whether AI features are enabled.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+}
+
+/// <summary>
 /// Security and rate limiting options.
 /// </summary>
 public class SecurityOptions
@@ -90,6 +155,16 @@ public class SecurityOptions
     /// Maximum query execution time in seconds.
     /// </summary>
     public int MaxQueryExecutionSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Whether to allow data modification queries (UPDATE, DELETE, INSERT).
+    /// </summary>
+    public bool AllowDataModification { get; set; }
+
+    /// <summary>
+    /// Whether to allow schema modification queries (CREATE, ALTER, DROP).
+    /// </summary>
+    public bool AllowSchemaModification { get; set; }
 }
 
 /// <summary>
@@ -111,6 +186,11 @@ public class LoggingOptions
     /// Whether to log query results.
     /// </summary>
     public bool LogResults { get; set; }
+
+    /// <summary>
+    /// Whether to log AI prompts and responses.
+    /// </summary>
+    public bool LogAiInteractions { get; set; } = true;
 
     /// <summary>
     /// Log file path (optional).

@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using PostgresMcp.Controllers;
-using PostgresMcp.Models;
-using PostgresMcp.Services;
+using PostgresNaturalLanguageMcp.Controllers;
+using PostgresNaturalLanguageMcp.Models;
+using PostgresNaturalLanguageMcp.Services;
 
-namespace PostgresMcp.Tests.Controllers;
+namespace PostgresNaturalLanguageMcp.Tests.Controllers;
 
 public class McpControllerTests
 {

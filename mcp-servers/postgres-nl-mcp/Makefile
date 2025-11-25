@@ -2,7 +2,7 @@
 
 # Default target
 help:
-	@echo "PostgreSQL MCP Server (Read-Only) - Available commands:"
+	@echo "PostgreSQL Natural Language MCP Server - Available commands:"
 	@echo ""
 	@echo "  make build        - Build the solution"
 	@echo "  make test         - Run all tests"
@@ -19,37 +19,37 @@ help:
 
 # Build the solution
 build:
-	dotnet build PostgresMcp.sln
+	dotnet build PostgresNaturalLanguageMcp.sln
 
 # Run tests
 test:
-	dotnet test PostgresMcp.sln --verbosity normal
+	dotnet test PostgresNaturalLanguageMcp.sln --verbosity normal
 
 # Run tests with coverage
 test-coverage:
-	dotnet test PostgresMcp.sln /p:CollectCoverage=true /p:CoverageReportFormat=opencover
+	dotnet test PostgresNaturalLanguageMcp.sln /p:CollectCoverage=true /p:CoverageReportFormat=opencover
 
 # Run the application
 run:
-	cd src/PostgresMcp && dotnet run
+	cd src/PostgresNaturalLanguageMcp && dotnet run
 
 # Clean build artifacts
 clean:
-	dotnet clean PostgresMcp.sln
-	rm -rf src/PostgresMcp/bin src/PostgresMcp/obj
-	rm -rf src/PostgresMcp.Tests/bin src/PostgresMcp.Tests/obj
+	dotnet clean PostgresNaturalLanguageMcp.sln
+	rm -rf src/PostgresNaturalLanguageMcp/bin src/PostgresNaturalLanguageMcp/obj
+	rm -rf src/PostgresNaturalLanguageMcp.Tests/bin src/PostgresNaturalLanguageMcp.Tests/obj
 
 # Restore NuGet packages
 restore:
-	dotnet restore PostgresMcp.sln
+	dotnet restore PostgresNaturalLanguageMcp.sln
 
 # Format code
 format:
-	dotnet format PostgresMcp.sln
+	dotnet format PostgresNaturalLanguageMcp.sln
 
 # Build Docker image
 docker-build:
-	docker build -t postgres-mcp:latest .
+	docker build -t postgres-nl-mcp:latest .
 
 # Start Docker services
 docker-up:
@@ -72,7 +72,7 @@ docker-restart: docker-down docker-build docker-up
 
 # Watch mode (auto-reload on changes)
 watch:
-	cd src/PostgresMcp && dotnet watch run
+	cd src/PostgresNaturalLanguageMcp && dotnet watch run
 
 # Watch mode for tests
 watch-test:
@@ -80,10 +80,10 @@ watch-test:
 
 # Database commands
 db-connect:
-	docker exec -it postgres-mcp-db psql -U postgres -d testdb
+	docker exec -it postgres-nl-mcp-db psql -U postgres -d testdb
 
 db-backup:
-	docker exec postgres-mcp-db pg_dump -U postgres testdb > backup_$$(date +%Y%m%d_%H%M%S).sql
+	docker exec postgres-nl-mcp-db pg_dump -U postgres testdb > backup_$$(date +%Y%m%d_%H%M%S).sql
 
 db-logs:
-	docker logs -f postgres-mcp-db
+	docker logs -f postgres-nl-mcp-db
