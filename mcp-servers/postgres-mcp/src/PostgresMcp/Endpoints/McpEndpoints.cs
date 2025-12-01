@@ -4,26 +4,43 @@ using Microsoft.Extensions.Options;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 
-namespace PostgresMcp.Controllers;
+namespace PostgresMcp.Endpoints;
 
 /// <summary>
-/// MCP (Model Context Protocol) controller for PostgreSQL database operations.
+/// MCP (Model Context Protocol) Minimal API endpoints for PostgreSQL database operations.
 /// </summary>
-[ApiController]
-[Route("mcp")]
-public class McpController(
-    ILogger<McpController> logger,
-    IDatabaseSchemaService schemaService,
-    IQueryService queryService,
-    IOptions<PostgresOptions> postgresOptions) : ControllerBase
+public static class McpEndpoints
 {
-    private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
+    /// <summary>
+    /// Maps MCP endpoints to the application.
+    /// </summary>
+    public static IEndpointRouteBuilder MapMcpEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        var mcpGroup = endpoints.MapGroup("/mcp")
+            .WithTags("MCP");
+
+        mcpGroup.MapGet("/tools", GetToolsAsync)
+            .WithName("GetMcpTools")
+            .WithDescription("List all available MCP tools")
+            .Produces<McpToolsResponse>();
+
+        mcpGroup.MapPost("/tools/call", CallToolAsync)
+            .WithName("CallMcpTool")
+            .WithDescription("Call a specific MCP tool")
+            .Produces<McpToolCallResponse>();
+
+        mcpGroup.MapPost("/jsonrpc", JsonRpcAsync)
+            .WithName("McpJsonRpc")
+            .WithDescription("JSON-RPC 2.0 endpoint for MCP protocol")
+            .Produces<JsonRpcResponse>();
+
+        return endpoints;
+    }
 
     /// <summary>
     /// List all available MCP tools.
     /// </summary>
-    [HttpGet("tools")]
-    public IActionResult GetTools()
+    private static IResult GetToolsAsync()
     {
         var tools = new McpToolsResponse
         {
@@ -73,14 +90,19 @@ public class McpController(
             ]
         };
 
-        return Ok(tools);
+        return Results.Ok(tools);
     }
 
     /// <summary>
     /// Call a specific MCP tool.
     /// </summary>
-    [HttpPost("tools/call")]
-    public async Task<IActionResult> CallTool([FromBody] McpToolCallRequest request, CancellationToken cancellationToken)
+    private static async Task<IResult> CallToolAsync(
+        [FromBody] McpToolCallRequest request,
+        IDatabaseSchemaService schemaService,
+        IQueryService queryService,
+        IOptions<PostgresOptions> postgresOptions,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -88,8 +110,10 @@ public class McpController(
 
             var response = request.Name switch
             {
-                "scan_database_structure" => await ScanDatabaseStructureAsync(request.Arguments, cancellationToken),
-                "query_database" => await QueryDatabaseAsync(request.Arguments, cancellationToken),
+                "scan_database_structure" => await ScanDatabaseStructureAsync(
+                    request.Arguments, schemaService, cancellationToken),
+                "query_database" => await QueryDatabaseAsync(
+                    request.Arguments, queryService, postgresOptions.Value, cancellationToken),
                 _ => new McpToolCallResponse
                 {
                     IsError = true,
@@ -97,13 +121,13 @@ public class McpController(
                 }
             };
 
-            return Ok(response);
+            return Results.Ok(response);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error calling tool: {ToolName}", request.Name);
 
-            return Ok(new McpToolCallResponse
+            return Results.Ok(new McpToolCallResponse
             {
                 IsError = true,
                 Content = [new McpContent { Text = $"Error: {ex.Message}" }]
@@ -114,19 +138,25 @@ public class McpController(
     /// <summary>
     /// JSON-RPC 2.0 endpoint for MCP protocol.
     /// </summary>
-    [HttpPost("jsonrpc")]
-    public async Task<IActionResult> JsonRpc([FromBody] JsonRpcRequest request, CancellationToken cancellationToken)
+    private static async Task<IResult> JsonRpcAsync(
+        [FromBody] JsonRpcRequest request,
+        IDatabaseSchemaService schemaService,
+        IQueryService queryService,
+        IOptions<PostgresOptions> postgresOptions,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
     {
         try
         {
             object? result = request.Method switch
             {
                 "tools/list" => GetToolsList(),
-                "tools/call" => await HandleToolCall(request.Params, cancellationToken),
+                "tools/call" => await HandleToolCallAsync(
+                    request.Params, schemaService, queryService, postgresOptions, logger, cancellationToken),
                 _ => throw new InvalidOperationException($"Unknown method: {request.Method}")
             };
 
-            return Ok(new JsonRpcResponse
+            return Results.Ok(new JsonRpcResponse
             {
                 Id = request.Id,
                 Result = result
@@ -136,7 +166,7 @@ public class McpController(
         {
             logger.LogError(ex, "JSON-RPC error: {Method}", request.Method);
 
-            return Ok(new JsonRpcResponse
+            return Results.Ok(new JsonRpcResponse
             {
                 Id = request.Id,
                 Error = new JsonRpcError
@@ -149,11 +179,12 @@ public class McpController(
         }
     }
 
-    private async Task<McpToolCallResponse> ScanDatabaseStructureAsync(
+    private static async Task<McpToolCallResponse> ScanDatabaseStructureAsync(
         Dictionary<string, object?> arguments,
+        IDatabaseSchemaService schemaService,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetConnectionString(arguments);
+        var connectionString = GetConnectionString(arguments, null);
 
         var schema = await schemaService.ScanDatabaseSchemaAsync(connectionString, cancellationToken);
 
@@ -169,11 +200,13 @@ public class McpController(
         };
     }
 
-    private async Task<McpToolCallResponse> QueryDatabaseAsync(
+    private static async Task<McpToolCallResponse> QueryDatabaseAsync(
         Dictionary<string, object?> arguments,
+        IQueryService queryService,
+        PostgresOptions postgresOptions,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetConnectionString(arguments);
+        var connectionString = GetConnectionString(arguments, postgresOptions);
 
         if (!arguments.TryGetValue("query", out var queryObj) || queryObj == null)
         {
@@ -209,7 +242,7 @@ public class McpController(
         };
     }
 
-    private string GetConnectionString(Dictionary<string, object?> arguments)
+    private static string GetConnectionString(Dictionary<string, object?> arguments, PostgresOptions? postgresOptions)
     {
         if (arguments.TryGetValue("connectionString", out var connStrObj) && connStrObj != null)
         {
@@ -217,26 +250,74 @@ public class McpController(
         }
 
         // Use default connection string if not provided
-        if (!string.IsNullOrEmpty(_postgresOptions.DefaultConnectionString))
+        if (postgresOptions != null && !string.IsNullOrEmpty(postgresOptions.DefaultConnectionString))
         {
-            return _postgresOptions.DefaultConnectionString;
+            return postgresOptions.DefaultConnectionString;
         }
 
         throw new ArgumentException("No connection string provided and no default configured");
     }
 
-    private object GetToolsList()
+    private static object GetToolsList()
     {
         var tools = new McpToolsResponse
         {
-            Tools = GetTools().Value as McpToolsResponse
-                ?? throw new InvalidOperationException("Failed to get tools")
+            Tools =
+            [
+                new McpTool
+                {
+                    Name = "scan_database_structure",
+                    Description = "Scan and analyze PostgreSQL database structure including tables, columns, indexes, foreign keys, and relationships. This is a read-only operation.",
+                    InputSchema = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            connectionString = new
+                            {
+                                type = "string",
+                                description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                            }
+                        },
+                        required = new[] { "connectionString" }
+                    }
+                },
+                new McpTool
+                {
+                    Name = "query_database",
+                    Description = "Execute a read-only SELECT query against the PostgreSQL database. Only SELECT queries are allowed - no data or schema modifications permitted.",
+                    InputSchema = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            connectionString = new
+                            {
+                                type = "string",
+                                description = "PostgreSQL connection string"
+                            },
+                            query = new
+                            {
+                                type = "string",
+                                description = "SQL SELECT query to execute (must be read-only)"
+                            }
+                        },
+                        required = new[] { "connectionString", "query" }
+                    }
+                }
+            ]
         };
 
         return tools;
     }
 
-    private async Task<object> HandleToolCall(Dictionary<string, object?>? parameters, CancellationToken cancellationToken)
+    private static async Task<object> HandleToolCallAsync(
+        Dictionary<string, object?>? parameters,
+        IDatabaseSchemaService schemaService,
+        IQueryService queryService,
+        IOptions<PostgresOptions> postgresOptions,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
     {
         if (parameters == null)
         {
@@ -264,8 +345,19 @@ public class McpController(
             Arguments = arguments
         };
 
-        var response = await CallTool(request, cancellationToken);
+        var response = request.Name switch
+        {
+            "scan_database_structure" => await ScanDatabaseStructureAsync(
+                request.Arguments, schemaService, cancellationToken),
+            "query_database" => await QueryDatabaseAsync(
+                request.Arguments, queryService, postgresOptions.Value, cancellationToken),
+            _ => new McpToolCallResponse
+            {
+                IsError = true,
+                Content = [new McpContent { Text = $"Unknown tool: {request.Name}" }]
+            }
+        };
 
-        return ((ObjectResult)response).Value ?? throw new InvalidOperationException("Failed to call tool");
+        return response;
     }
 }

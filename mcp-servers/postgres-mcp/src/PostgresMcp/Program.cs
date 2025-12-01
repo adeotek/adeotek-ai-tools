@@ -1,9 +1,9 @@
 using AspNetCoreRateLimit;
+using PostgresMcp.Endpoints;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 using Scalar.AspNetCore;
 using Serilog;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,15 +18,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
-
-// Add services to the container
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
 
 // Configure options
 builder.Services.Configure<PostgresOptions>(
@@ -112,7 +103,8 @@ app.UseCors();
 
 app.UseAuthorization();
 
-app.MapControllers();
+// Map MCP endpoints
+app.MapMcpEndpoints();
 
 app.MapHealthChecks("/health");
 
