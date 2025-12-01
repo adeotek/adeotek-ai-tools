@@ -62,6 +62,9 @@ if (securityOptions?.EnableRateLimiting == true)
     Log.Information("Rate limiting enabled: {RequestsPerMinute} requests per minute", securityOptions.RequestsPerMinute);
 }
 
+// Configure OpenAPI
+builder.Services.AddOpenApi();
+
 // Configure CORS
 builder.Services.AddCors(options =>
 {
@@ -79,6 +82,7 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
     options

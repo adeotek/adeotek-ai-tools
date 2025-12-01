@@ -19,7 +19,7 @@ adeotek-ai-tools/
 ├── CLAUDE.md                # This file - detailed context for Claude
 ├── LICENSE                  # MIT License
 ├── mcp-servers/             # Model Context Protocol servers
-│   └── postgres-mcp/        # PostgreSQL MCP server (planned)
+│   └── postgres-nl-mcp/        # PostgreSQL MCP server (planned)
 ├── agents/                  # Intelligent AI agents
 │   └── http-agent/          # Intelligent HTTP request agent
 │       ├── cmd/
@@ -95,20 +95,65 @@ docker-compose up -d
 - "Is this API response time acceptable?"
 - "What are the security headers in this response?"
 
-### 2. PostgreSQL MCP Server (`/mcp-servers/postgres-mcp`)
+### 2. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
 
-**Status**: Planned (not yet implemented)
+**Status**: ✅ Production Ready
 
-**Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Semantic Kernel
+**Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Semantic Kernel, Scalar, Serilog
 
-**Purpose**: Model Context Protocol server for PostgreSQL database operations with AI-powered query generation and schema analysis.
+**Purpose**: A production-ready Model Context Protocol server for PostgreSQL database operations with AI-powered query generation and natural language understanding.
 
-**Planned Features**:
-- Schema scanning and relationship mapping
-- Natural language to SQL query generation
-- Data analysis and insights
-- MCP protocol compliance
-- HTTP-based API
+**Key Features**:
+- **Three MCP Tools**:
+  1. `scan_database_structure` - Comprehensive database schema analysis with AI-powered Q&A
+  2. `query_database_data` - Natural language to SQL with automatic relationship detection
+  3. `advanced_sql_query` - AI-powered SQL generation with validation and optimization
+- **AI-Powered**: Integrates with OpenAI or Azure OpenAI via Semantic Kernel
+- **Security First**: SQL injection prevention, rate limiting, read-only by default, query timeouts
+- **Production Ready**: Comprehensive testing (xUnit), structured logging (Serilog), error handling
+- **API Documentation**: Beautiful Scalar UI for interactive API exploration
+- **Docker Ready**: Complete docker-compose setup with PostgreSQL and pgAdmin
+- **MCP Compliant**: Full JSON-RPC 2.0 support for Model Context Protocol
+
+**Configuration**:
+- Environment variables for all settings (connection strings, API keys, security)
+- Support for both OpenAI and Azure OpenAI
+- Configurable security limits (max rows, query timeout, rate limiting)
+- SSL/TLS support for database connections
+
+**Running Locally**:
+```bash
+cd mcp-servers/postgres-nl-mcp
+# Set OpenAI API key
+export Ai__ApiKey=your-openai-key
+# Start with Docker Compose (includes PostgreSQL + pgAdmin)
+docker-compose up -d
+# Access API documentation at http://localhost:5000/scalar/v1
+```
+
+**Running for Development**:
+```bash
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
+dotnet user-secrets set "Ai:ApiKey" "your-openai-key"
+dotnet restore
+dotnet run
+# Open http://localhost:5000/scalar/v1
+```
+
+**API Endpoints**:
+- `GET /mcp/tools` - List available MCP tools
+- `POST /mcp/tools/call` - Execute an MCP tool
+- `POST /mcp/jsonrpc` - JSON-RPC 2.0 endpoint
+- `GET /health` - Health check
+- `GET /scalar/v1` - API documentation UI
+
+**Example Use Cases**:
+- "What tables have foreign keys to the customers table?"
+- "Show me all customers who made orders in the last 30 days"
+- "Calculate average order value by product category for customers with more than 3 orders"
+- Automated database documentation generation
+- Natural language data exploration
+- AI-assisted SQL query writing
 
 ## Development Guidelines
 
@@ -252,6 +297,65 @@ export LLM_MODEL=local-model
 export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
 ```
 
+### PostgreSQL Natural Language MCP Server
+
+```bash
+# Local development
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
+dotnet restore
+dotnet build
+dotnet run
+
+# Run tests
+cd mcp-servers/postgres-nl-mcp
+dotnet test
+
+# Format code
+dotnet format
+
+# Docker deployment
+cd mcp-servers/postgres-nl-mcp
+docker-compose up -d
+docker-compose logs -f postgres-nl-mcp
+docker-compose down
+
+# Environment variables - OpenAI
+export Ai__ApiKey=sk-...
+export Ai__Model=gpt-4
+export Ai__Enabled=true
+export ASPNETCORE_ENVIRONMENT=Development
+
+# Environment variables - Azure OpenAI
+export Ai__ApiKey=your-azure-key
+export Ai__AzureEndpoint=https://your-resource.openai.azure.com
+export Ai__AzureDeploymentName=gpt-4
+export Ai__Model=gpt-4
+
+# Database connection
+export Postgres__DefaultConnectionString="Host=localhost;Port=5432;Database=testdb;Username=postgres;Password=yourpass"
+
+# Security settings
+export Security__EnableRateLimiting=false
+export Security__MaxRowsPerQuery=1000
+export Security__AllowDataModification=false
+
+# User secrets (recommended for development)
+cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
+dotnet user-secrets init
+dotnet user-secrets set "Ai:ApiKey" "sk-..."
+dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;..."
+
+# Access API documentation
+# Open http://localhost:5000/scalar/v1
+
+# Test API endpoints
+curl http://localhost:5000/health
+curl http://localhost:5000/mcp/tools
+curl -X POST http://localhost:5000/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name":"scan_database_structure","arguments":{"connectionString":"Host=postgres;Database=testdb;...","question":"What tables exist?"}}'
+```
+
 ## Architecture Patterns
 
 ### Agent Pattern
@@ -345,6 +449,56 @@ curl -X POST http://localhost:8080/api/request \
 curl http://localhost:8080/health
 ```
 
+### PostgreSQL Natural Language MCP Server
+
+```bash
+# Test health endpoint
+curl http://localhost:5000/health
+
+# List available MCP tools
+curl http://localhost:5000/mcp/tools
+
+# Test scan_database_structure tool
+curl -X POST http://localhost:5000/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "scan_database_structure",
+    "arguments": {
+      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
+      "question": "What tables exist in the database?"
+    }
+  }'
+
+# Test query_database_data tool
+curl -X POST http://localhost:5000/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "query_database_data",
+    "arguments": {
+      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
+      "query": "Show me all customers with their order counts"
+    }
+  }'
+
+# Test advanced_sql_query tool
+curl -X POST http://localhost:5000/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "advanced_sql_query",
+    "arguments": {
+      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
+      "naturalLanguageQuery": "Calculate the average order value by product category"
+    }
+  }'
+
+# Run unit tests
+cd mcp-servers/postgres-nl-mcp
+dotnet test --verbosity normal
+
+# Run tests with coverage
+dotnet test /p:CollectCoverage=true /p:CoverageReportFormat=opencover
+```
+
 ## Deployment
 
 ### Docker (Recommended)
@@ -390,18 +544,51 @@ spec:
 
 ### Common Issues
 
+**HTTP Agent**:
 1. **"API key required" errors**: Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
 2. **Port conflicts**: Change `PORT` environment variable
 3. **Docker build fails**: Clear cache with `docker-compose build --no-cache`
 4. **Private IP blocked**: Set `BLOCK_PRIVATE_IPS=false` for local testing
 5. **Request timeout**: Increase `HTTP_TIMEOUT` value
 
+**PostgreSQL Natural Language MCP Server**:
+1. **AI features not working**:
+   - Check if `Ai__ApiKey` is set
+   - Verify `Ai__Enabled=true` in configuration
+   - Check logs for API errors
+   - Ensure network access to OpenAI API
+2. **Database connection fails**:
+   - Verify connection string format: `Host=...;Port=5432;Database=...;Username=...;Password=...`
+   - Check if PostgreSQL is running
+   - Ensure network connectivity (especially in Docker)
+   - Verify credentials are correct
+3. **Rate limiting issues**:
+   - Check `Security__RequestsPerMinute` setting
+   - Disable rate limiting in development: `Security__EnableRateLimiting=false`
+   - Restart application to clear rate limit cache
+4. **Query timeout**:
+   - Increase `Security__MaxQueryExecutionSeconds` value
+   - Optimize slow queries
+   - Check database performance
+5. **Port conflicts**:
+   - PostgreSQL MCP uses port 5000 (API) and 5001 (HTTPS)
+   - pgAdmin uses port 8080
+   - PostgreSQL uses port 5432
+   - Change ports in docker-compose.yml if needed
+
 ### Debug Mode
 
 Enable debug logging:
 ```bash
-export GIN_MODE=debug  # For Go/Gin projects
-export LOG_LEVEL=debug # For other projects
+# For Go/Gin projects (HTTP Agent)
+export GIN_MODE=debug
+export LOG_LEVEL=debug
+
+# For .NET projects (PostgreSQL MCP)
+export ASPNETCORE_ENVIRONMENT=Development
+export Logging__LogLevel__Default=Debug
+export Logging__LogQueries=true
+export Logging__LogResults=true
 ```
 
 ## Contributing
@@ -417,19 +604,32 @@ When contributing to this repository:
 
 ## Future Roadmap
 
+### Completed Projects
+- [x] **HTTP Agent** (Go) - Intelligent HTTP request tool with AI analysis
+- [x] **PostgreSQL Natural Language MCP Server** (.NET 9) - AI-powered database operations
+
+### Planned MCP Servers
+- [ ] MySQL MCP Server (.NET 9)
+- [ ] MongoDB MCP Server (Go)
+- [ ] Redis MCP Server (Go)
+- [ ] Elasticsearch MCP Server (Go)
+
 ### Planned Agents
-- [ ] PostgreSQL MCP Server (.NET 9)
 - [ ] Document Analysis Agent (Python)
 - [ ] Code Review Agent (Go)
 - [ ] Email Assistant Agent (Go)
+- [ ] Data Transformation Agent (.NET)
 
 ### Planned Features
 - [ ] Request history and favorites (HTTP Agent)
-- [ ] WebSocket support (HTTP Agent)
+- [ ] WebSocket support for real-time updates (HTTP Agent)
+- [ ] Query caching and optimization (PostgreSQL MCP)
+- [ ] GraphQL endpoint (PostgreSQL MCP)
 - [ ] Authentication and user management
 - [ ] Shared agent library for common functionality
 - [ ] CLI tools for all agents
-- [ ] Performance monitoring and metrics
+- [ ] Performance monitoring and metrics dashboard
+- [ ] Multi-database query aggregation
 
 ## Resources
 

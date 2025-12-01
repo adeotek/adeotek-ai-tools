@@ -1,0 +1,86 @@
+---
+services:
+
+  # PostgreSQL MCP Server (Read-Only)
+  postgres-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: postgres-mcp-server
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      # ASP.NET Core Configuration
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:5000}
+      # PostgreSQL Connection
+      - Postgres__DefaultConnectionString=${Postgres__DefaultConnectionString:-Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=password}
+      # Security Settings
+      - Security__EnableRateLimiting=${Security__EnableRateLimiting:-false}
+      - Security__RequestsPerMinute=${Security__RequestsPerMinute:-60}
+      - Security__MaxRowsPerQuery=${Security__MaxRowsPerQuery:-1000}
+      - Security__MaxQueryExecutionSeconds=${Security__MaxQueryExecutionSeconds:-30}
+      # Logging Configuration
+      - Logging__LogLevel__Default=${Logging__LogLevel__Default:-Information}
+      - Logging__LogLevel__Microsoft__AspNetCore=${Logging__LogLevel__Microsoft__AspNetCore:-Warning}
+      - Logging__LogQueries=${Logging__LogQueries:-true}
+      - Logging__LogResults=${Logging__LogResults:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  # PostgreSQL Database (for testing)
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-mcp-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-testdb}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker-init:/docker-entrypoint-initdb.d
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # pgAdmin (optional - for database management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: postgres-mcp-pgadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=${PGADMIN_CONFIG_SERVER_MODE:-False}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - mcp-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  pgadmin-data:
+    driver: local

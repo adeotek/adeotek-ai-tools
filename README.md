@@ -43,15 +43,26 @@ go run cmd/server/main.go
 
 **Location**: [`/mcp-servers/postgres-mcp`](./mcp-servers/postgres-mcp)
 **Language**: .NET 9
-**Status**: 📋 Planned
+**Status**: ✅ Ready to use
 
-Model Context Protocol server for PostgreSQL with AI-powered query generation and schema analysis.
+A production-ready Model Context Protocol (MCP) server for PostgreSQL database operations with AI-powered query generation and natural language understanding.
 
-**Planned Features**:
-- Schema scanning and relationship mapping
-- Natural language to SQL query generation
-- Data analysis and insights
-- MCP protocol compliance
+**Features**:
+- 🔍 **Schema Scanner**: Comprehensive database structure analysis
+- 💬 **Natural Language Queries**: Convert plain English to SQL
+- 🤖 **AI-Powered SQL Generation**: Advanced query generation with validation
+- 🔒 **Security First**: SQL injection prevention, rate limiting, read-only by default
+- 📊 **Three MCP Tools**: scan_database_structure, query_database_data, advanced_sql_query
+- 🐳 **Docker Ready**: Complete setup with PostgreSQL and pgAdmin
+
+**Quick Start**:
+```bash
+cd mcp-servers/postgres-mcp
+docker-compose up -d
+# Open http://localhost:5000/scalar/v1
+```
+
+[Read full documentation →](./mcp-servers/postgres-mcp/README.md)
 
 ---
 
@@ -86,7 +97,7 @@ adeotek-ai-tools/
 ├── agents/              # Intelligent AI agents
 │   └── http-agent/      # HTTP request agent with AI analysis
 ├── mcp-servers/         # Model Context Protocol servers
-│   └── postgres-mcp/    # PostgreSQL MCP server (planned)
+│   └── postgres-mcp/    # PostgreSQL MCP server with AI query generation
 ├── tools/               # Additional AI tools (planned)
 ├── README.md           # This file
 ├── CLAUDE.md           # Detailed context for Claude AI
@@ -96,10 +107,12 @@ adeotek-ai-tools/
 ## 🛠️ Technology Stack
 
 - **Go**: Gin web framework, Viper configuration
-- **.NET**: ASP.NET Core, Semantic Kernel
-- **AI/LLM**: OpenAI API, Anthropic Claude API
+- **.NET 9**: ASP.NET Core, Semantic Kernel, Npgsql, Scalar (API docs)
+- **AI/LLM**: OpenAI, Anthropic Claude, Google Gemini, Ollama, LM Studio
 - **Containers**: Docker, Docker Compose
-- **Databases**: PostgreSQL (via Npgsql)
+- **Databases**: PostgreSQL
+- **Testing**: xUnit, Moq, FluentAssertions
+- **Logging**: Serilog (structured logging)
 
 ## 📚 Documentation
 
@@ -185,49 +198,6 @@ Contributions are welcome! Please follow these guidelines:
 
 See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines.
 
-## 📝 Examples
-
-### HTTP Agent - Making Requests
-
-```bash
-# Using curl
-curl -X POST http://localhost:8080/api/request \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://api.github.com/users/github",
-    "method": "GET",
-    "prompt": "Tell me about this GitHub user"
-  }'
-```
-
-### Natural Language Queries
-
-The agents understand questions like:
-- "Is the URL accessible?"
-- "What's the response code?"
-- "Show me the JSON response"
-- "How long did it take?"
-- "Is this API healthy?"
-
-## 🗺️ Roadmap
-
-### Current Projects
-- ✅ Intelligent HTTP Agent (Go)
-
-### Planned Projects
-- [ ] PostgreSQL MCP Server (.NET 9)
-- [ ] Document Analysis Agent (Python)
-- [ ] Code Review Agent (Go)
-- [ ] Email Assistant Agent (Go)
-
-### Planned Features
-- [ ] Request history and favorites
-- [ ] WebSocket support
-- [ ] Authentication and user management
-- [ ] Shared agent library
-- [ ] CLI tools for all agents
-- [ ] Performance monitoring
-
 ## 📖 Resources
 
 - **OpenAI Documentation**: https://platform.openai.com/docs
@@ -239,19 +209,3 @@ The agents understand questions like:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
-## 🙋 Support
-
-- **Issues**: [GitHub Issues](https://github.com/adeotek/adeotek-ai-tools/issues)
-- **Documentation**: [CLAUDE.md](./CLAUDE.md)
-- **Discussions**: [GitHub Discussions](https://github.com/adeotek/adeotek-ai-tools/discussions)
-
-## 🌟 Acknowledgments
-
-- Built with modern AI technologies
-- Powered by OpenAI and Anthropic
-- Community-driven development
-
----
-
-**Made with ❤️ by the AdeoTEK team**
