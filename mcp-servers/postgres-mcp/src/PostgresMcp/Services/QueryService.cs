@@ -13,12 +13,12 @@ public class QueryService(
     ILogger<QueryService> logger,
     IOptions<PostgresOptions> postgresOptions,
     IOptions<SecurityOptions> securityOptions,
-    IOptions<LoggingOptions> loggingOptions)
+    IOptions<McpLoggingOptions> loggingOptions)
     : IQueryService
 {
     private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
-    private readonly LoggingOptions _loggingOptions = loggingOptions.Value;
+    private readonly McpLoggingOptions _loggingOptions = loggingOptions.Value;
 
     /// <inheritdoc/>
     public async Task<QueryResult> ExecuteQueryAsync(
@@ -43,10 +43,8 @@ public class QueryService(
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        await using var cmd = new NpgsqlCommand(sql, connection)
-        {
-            CommandTimeout = _securityOptions.MaxQueryExecutionSeconds
-        };
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.CommandTimeout = _securityOptions.MaxQueryExecutionSeconds;
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 

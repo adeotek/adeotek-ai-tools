@@ -11,30 +11,64 @@ namespace PostgresMcp.Endpoints;
 /// </summary>
 public static class McpEndpoints
 {
-    /// <summary>
-    /// Maps MCP endpoints to the application.
-    /// </summary>
-    public static IEndpointRouteBuilder MapMcpEndpoints(this IEndpointRouteBuilder endpoints)
+    extension(IEndpointRouteBuilder endpoints)
     {
-        var mcpGroup = endpoints.MapGroup("/mcp")
-            .WithTags("MCP");
+        /// <summary>
+        /// Maps MCP endpoints to the application.
+        /// </summary>
+        public IEndpointRouteBuilder MapRootEndpoint()
+        {
+            // Root endpoint with API information
+            endpoints.MapGet("/", () => Results.Json(new
+            {
+                name = "PostgreSQL MCP Server",
+                version = "1.0.0",
+                description = "Read-only Model Context Protocol server for PostgreSQL database operations",
+                capabilities = new
+                {
+                    readOnly = true,
+                    dataModificationsBlocked = true,
+                    schemaModificationsBlocked = true
+                },
+                endpoints = new
+                {
+                    tools = "/mcp/tools",
+                    call = "/mcp/tools/call",
+                    jsonrpc = "/mcp/jsonrpc",
+                    health = "/health",
+                    documentation = "/scalar/v1"
+                },
+                documentation = "/scalar/v1"
+            }));
 
-        mcpGroup.MapGet("/tools", GetToolsAsync)
-            .WithName("GetMcpTools")
-            .WithDescription("List all available MCP tools")
-            .Produces<McpToolsResponse>();
+            return endpoints;
+        }
 
-        mcpGroup.MapPost("/tools/call", CallToolAsync)
-            .WithName("CallMcpTool")
-            .WithDescription("Call a specific MCP tool")
-            .Produces<McpToolCallResponse>();
+        /// <summary>
+        /// Maps MCP endpoints to the application.
+        /// </summary>
+        public IEndpointRouteBuilder MapMcpEndpoints()
+        {
+            var mcpGroup = endpoints.MapGroup("/mcp")
+                .WithTags("MCP");
 
-        mcpGroup.MapPost("/jsonrpc", JsonRpcAsync)
-            .WithName("McpJsonRpc")
-            .WithDescription("JSON-RPC 2.0 endpoint for MCP protocol")
-            .Produces<JsonRpcResponse>();
+            mcpGroup.MapGet("/tools", GetToolsAsync)
+                .WithName("GetMcpTools")
+                .WithDescription("List all available MCP tools")
+                .Produces<McpToolsResponse>();
 
-        return endpoints;
+            mcpGroup.MapPost("/tools/call", CallToolAsync)
+                .WithName("CallMcpTool")
+                .WithDescription("Call a specific MCP tool")
+                .Produces<McpToolCallResponse>();
+
+            mcpGroup.MapPost("/jsonrpc", JsonRpcAsync)
+                .WithName("McpJsonRpc")
+                .WithDescription("JSON-RPC 2.0 endpoint for MCP protocol")
+                .Produces<JsonRpcResponse>();
+
+            return endpoints;
+        }
     }
 
     /// <summary>
@@ -148,11 +182,11 @@ public static class McpEndpoints
     {
         try
         {
-            object? result = request.Method switch
+            var result = request.Method switch
             {
                 "tools/list" => GetToolsList(),
                 "tools/call" => await HandleToolCallAsync(
-                    request.Params, schemaService, queryService, postgresOptions, logger, cancellationToken),
+                    request.Params, schemaService, queryService, postgresOptions, cancellationToken),
                 _ => throw new InvalidOperationException($"Unknown method: {request.Method}")
             };
 
@@ -316,7 +350,6 @@ public static class McpEndpoints
         IDatabaseSchemaService schemaService,
         IQueryService queryService,
         IOptions<PostgresOptions> postgresOptions,
-        ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
         if (parameters == null)
