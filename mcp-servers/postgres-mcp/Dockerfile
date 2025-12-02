@@ -33,10 +33,7 @@ RUN dotnet restore "./PostgresMcp/PostgresMcp.csproj"
 # Copy source code and build
 COPY ./src/PostgresMcp/ ./PostgresMcp/
 WORKDIR "/src/PostgresMcp"
-RUN dotnet build "./PostgresMcp.csproj" \
-    -c $BUILD_CONFIGURATION \
-    -o /app/build \
-    --no-restore
+RUN dotnet build "./PostgresMcp.csproj" -c $BUILD_CONFIGURATION --no-restore
 
 # Publish stage
 FROM build AS publish

@@ -28,7 +28,7 @@ services:
       - Logging__LogLevel__Microsoft__AspNetCore=${Logging__LogLevel__Microsoft__AspNetCore:-Warning}
       - Logging__LogQueries=${Logging__LogQueries:-true}
       - Logging__LogResults=${Logging__LogResults:-false}
-    network_mode: "bridge"
+    network_mode: bridge
     # Security hardening
     security_opt:
       - no-new-privileges:true
@@ -39,4 +39,3 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /app/logs
