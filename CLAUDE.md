@@ -7,6 +7,8 @@ This document provides high-level context about the Adeotek AI Tools repository 
 - **PostgreSQL MCP Server** (read-only): `/mcp-servers/postgres-mcp/CLAUDE.md`
 - **PostgreSQL Natural Language MCP**: `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 
+> **📖 Important for Claude**: When working on a specific project task, **ALWAYS read that project's CLAUDE.md file FIRST** using the Read tool before proceeding. This ensures you have the detailed context, architecture patterns, and implementation guidelines specific to that project. See the "Working with Claude: Important Workflow" section below for details.
+
 ## Repository Overview
 
 **Purpose**: A collection of AI-related tools, intelligent agents, and Model Context Protocol (MCP) servers designed to enhance productivity and enable AI-powered workflows.
@@ -129,9 +131,11 @@ docker-compose up -d
 
 5. **Document thoroughly**:
    - Create comprehensive `README.md` in agent directory (user-facing)
-   - Create `CLAUDE.md` in agent directory (context for Claude)
-   - Update this root `CLAUDE.md` with a brief project overview
+   - Create `CLAUDE.md` in agent directory (detailed context for Claude - **REQUIRED**)
+   - Update this root `CLAUDE.md` with a brief project overview and reference to the project's CLAUDE.md
    - Update root `README.md` with quick reference
+
+   **Note**: The project-specific `CLAUDE.md` is critical for Claude to work effectively on your project. Include architecture, configuration, development workflow, troubleshooting, and code quality standards.
 
 ### Adding a New MCP Server
 
@@ -148,10 +152,13 @@ docker-compose up -d
 
 3. **Add documentation**:
    - Create comprehensive `README.md` (user-facing)
-   - Create `CLAUDE.md` (context for Claude)
+   - Create `CLAUDE.md` (detailed context for Claude - **REQUIRED**)
+   - Update this root `CLAUDE.md` with a brief overview and reference to the project's CLAUDE.md
    - Tool descriptions and usage examples
    - Configuration instructions
    - Docker deployment guide
+
+   **Note**: The project-specific `CLAUDE.md` is critical for Claude to work effectively on your project. Include MCP tools documentation, configuration, security features, testing, and troubleshooting.
 
 ### Code Quality Standards
 
@@ -429,6 +436,54 @@ When contributing to this repository:
 - **OpenAI API**: https://platform.openai.com/docs
 - **Anthropic API**: https://docs.anthropic.com
 - **MCP Specification**: https://modelcontextprotocol.io
+
+## Working with Claude: Important Workflow
+
+### Before Starting Any Task
+
+**CRITICAL: When working on a specific project, ALWAYS read that project's CLAUDE.md file FIRST before proceeding with the task.**
+
+**Workflow for Project-Specific Tasks**:
+1. **Identify the project**: Determine which project the task relates to (http-agent, postgres-mcp, postgres-nl-mcp)
+2. **Read the project's CLAUDE.md**: Use the Read tool to load the project-specific CLAUDE.md file
+3. **Understand the context**: Review the project's architecture, patterns, and guidelines
+4. **Execute the task**: Proceed with the task using the project-specific context
+
+**Examples**:
+- Task: "Fix a bug in the HTTP agent SSL verification"
+  → **First read** `/agents/http-agent/CLAUDE.md` to understand the SSL implementation
+  → Then proceed with debugging
+
+- Task: "Add a new validation rule to postgres-mcp"
+  → **First read** `/mcp-servers/postgres-mcp/CLAUDE.md` to understand query validation
+  → Then implement the new rule
+
+- Task: "Optimize a query in postgres-nl-mcp"
+  → **First read** `/mcp-servers/postgres-nl-mcp/CLAUDE.md` to understand AI integration
+  → Then optimize the query
+
+**Why This Matters**:
+- Each project has specific architecture patterns, coding standards, and security considerations
+- Project-specific CLAUDE.md files contain detailed implementation guidance not in this root file
+- Reading project context first prevents mistakes and ensures consistency
+- This root CLAUDE.md is for repository-wide guidance only
+
+### When to Use Which CLAUDE.md File
+
+**Use Root CLAUDE.md** (`/CLAUDE.md`) for:
+- Understanding overall repository structure
+- Learning how to add new agents or MCP servers
+- Repository-wide patterns and conventions
+- General development guidelines
+- Security best practices across all projects
+
+**Use Project-Specific CLAUDE.md** for:
+- Implementation details of a specific project
+- Project-specific architecture and design patterns
+- Configuration options and environment variables
+- API endpoints and tool implementations
+- Project-specific troubleshooting
+- Code quality standards for that project's language/framework
 
 ## Questions for Claude
 
