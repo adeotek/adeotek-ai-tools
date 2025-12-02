@@ -4,6 +4,7 @@ This document provides high-level context about the Adeotek AI Tools repository 
 
 **For project-specific details, see the CLAUDE.md file in each project directory:**
 - **HTTP Agent**: `/agents/http-agent/CLAUDE.md`
+- **PostgreSQL MCP Server** (read-only): `/mcp-servers/postgres-mcp/CLAUDE.md`
 - **PostgreSQL Natural Language MCP**: `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 
 ## Repository Overview
@@ -59,7 +60,24 @@ go run cmd/server/main.go
 
 **📄 For detailed documentation**: See `/agents/http-agent/CLAUDE.md`
 
-### 2. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
+### 2. PostgreSQL MCP Server (`/mcp-servers/postgres-mcp`)
+
+**Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Serilog, Scalar
+
+**Purpose**: A **read-only** Model Context Protocol server for PostgreSQL providing secure, direct SQL access without AI/LLM dependencies.
+
+**Key Features**: Two MCP tools (database structure scanning, read-only queries), comprehensive query validation, no AI required, lightweight and fast.
+
+**Quick Start**:
+```bash
+cd mcp-servers/postgres-mcp
+docker-compose up -d
+# Open http://localhost:5000/scalar/v1
+```
+
+**📄 For detailed documentation**: See `/mcp-servers/postgres-mcp/CLAUDE.md`
+
+### 3. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
 
 **Status**: ✅ Production Ready
 
@@ -431,8 +449,10 @@ When asking about the overall repository structure and guidelines:
 For questions about specific projects, Claude will automatically reference the appropriate project-specific CLAUDE.md file:
 
 - "How does the HTTP agent handle SSL certificates?" → See `/agents/http-agent/CLAUDE.md`
-- "How do I configure the PostgreSQL MCP server?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 - "What LLM providers does the HTTP agent support?" → See `/agents/http-agent/CLAUDE.md`
-- "How does SQL injection prevention work in the PostgreSQL MCP?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+- "How does query validation work in postgres-mcp?" → See `/mcp-servers/postgres-mcp/CLAUDE.md`
+- "What's the difference between postgres-mcp and postgres-nl-mcp?" → See `/mcp-servers/postgres-mcp/CLAUDE.md` or `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+- "How do I configure the PostgreSQL Natural Language MCP server?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+- "How does SQL injection prevention work in postgres-nl-mcp?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 
 Claude has full context from this document and can help with repository-wide development, architecture decisions, and will reference project-specific CLAUDE.md files for detailed project-specific questions.
