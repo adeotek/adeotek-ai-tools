@@ -1,7 +1,6 @@
 ---
 services:
 
-  # PostgreSQL MCP Server (Read-Only)
   postgres-mcp:
     build:
       context: .
@@ -29,4 +28,14 @@ services:
       - Logging__LogLevel__Microsoft__AspNetCore=${Logging__LogLevel__Microsoft__AspNetCore:-Warning}
       - Logging__LogQueries=${Logging__LogQueries:-true}
       - Logging__LogResults=${Logging__LogResults:-false}
-    network_mode: "bridge"
+    network_mode: bridge
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
