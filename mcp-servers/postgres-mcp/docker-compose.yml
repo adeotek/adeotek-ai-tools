@@ -10,23 +10,40 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-      - "5001:5001"
     volumes:
       - ./logs:/app/logs
     environment:
       # ASP.NET Core Configuration
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:5000}
+      - ASPNETCORE_URLS=http://+:5000
       # PostgreSQL Connection
       - Postgres__DefaultConnectionString=${Postgres__DefaultConnectionString:-Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=password}
       # Security Settings
-      - Security__EnableRateLimiting=${Security__EnableRateLimiting:-false}
+      - Security__EnableRateLimiting=${Security__EnableRateLimiting:-true}
       - Security__RequestsPerMinute=${Security__RequestsPerMinute:-60}
       - Security__MaxRowsPerQuery=${Security__MaxRowsPerQuery:-1000}
       - Security__MaxQueryExecutionSeconds=${Security__MaxQueryExecutionSeconds:-30}
+      - Security__AllowDataModification=${Security__AllowDataModification:-false}
       # Logging Configuration
       - Logging__LogLevel__Default=${Logging__LogLevel__Default:-Information}
       - Logging__LogLevel__Microsoft__AspNetCore=${Logging__LogLevel__Microsoft__AspNetCore:-Warning}
       - Logging__LogQueries=${Logging__LogQueries:-true}
       - Logging__LogResults=${Logging__LogResults:-false}
-    network_mode: "bridge"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/logs
+    networks:
+      - postgres-mcp-network
+
+# Define network for better isolation
+networks:
+  postgres-mcp-network:
+    driver: bridge
