@@ -1,49 +1,32 @@
+# Base stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 5000
+EXPOSE 5001
+ENV ASPNETCORE_URLS=http://+:5000;https://+:5001
+ENV ASPNETCORE_ENVIRONMENT=Production
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/_health || exit 1
+
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-
-# Copy project files
-COPY src/PostgresMcp/PostgresMcp.csproj src/PostgresMcp/
-RUN dotnet restore src/PostgresMcp/PostgresMcp.csproj
-
-# Copy remaining source files
-COPY src/ src/
-
-# Build the application
-WORKDIR /src/src/PostgresMcp
-RUN dotnet build PostgresMcp.csproj -c Release -o /app/build
+COPY ["src/PostgresMcp/PostgresMcp.csproj", "PostgresMcp/"]
+RUN dotnet restore "./PostgresMcp/PostgresMcp.csproj"
+COPY ./src/PostgresMcp/ ./PostgresMcp/
+WORKDIR "/src/PostgresMcp"
+RUN dotnet build "./PostgresMcp.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish PostgresMcp.csproj -c Release -o /app/publish /p:UseAppHost=false
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./PostgresMcp.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM base AS final
 WORKDIR /app
-
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Copy published application
 COPY --from=publish /app/publish .
-
-# Create logs directory and set permissions
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
-
-# Switch to non-root user
-USER appuser
-
-# Expose ports
-EXPOSE 5000
-EXPOSE 5001
-
-# Environment variables
-ENV ASPNETCORE_URLS=http://+:5000;https://+:5001
-ENV ASPNETCORE_ENVIRONMENT=Production
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
-
-# Entry point
+RUN mkdir -p /app/logs
 ENTRYPOINT ["dotnet", "PostgresMcp.dll"]
