@@ -1,5 +1,5 @@
-# Base stage - using .NET 9 (latest stable)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
+# Base stage - using .NET 10 (latest stable)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 
 # Install curl for healthcheck and clean up in same layer to reduce image size
 RUN apk add --no-cache curl=~8
@@ -30,7 +30,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:5000/_health || exit 1
 
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
