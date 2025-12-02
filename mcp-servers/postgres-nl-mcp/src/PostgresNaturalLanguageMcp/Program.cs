@@ -156,6 +156,7 @@ else
 }
 
 // Register application services
+builder.Services.AddSingleton<IConnectionBuilderService, ConnectionBuilderService>();
 builder.Services.AddScoped<IDatabaseSchemaService, DatabaseSchemaService>();
 builder.Services.AddScoped<IQueryService, QueryService>();
 builder.Services.AddScoped<ISqlGenerationService, SqlGenerationService>();

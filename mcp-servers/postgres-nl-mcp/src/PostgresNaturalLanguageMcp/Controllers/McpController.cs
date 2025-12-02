@@ -13,10 +13,83 @@ namespace PostgresNaturalLanguageMcp.Controllers;
 [Route("mcp")]
 public class McpController(
     ILogger<McpController> logger,
+    IConnectionBuilderService connectionBuilder,
     IDatabaseSchemaService schemaService,
     IQueryService queryService,
     ISqlGenerationService sqlGenerationService) : ControllerBase
 {
+    /// <summary>
+    /// Initialize/configure the MCP server with PostgreSQL server connection parameters.
+    /// Endpoint: POST /mcp/initialize
+    /// </summary>
+    [HttpPost("initialize")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    public IActionResult Initialize([FromBody] ServerConnectionOptions options)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(options.Username))
+            {
+                return BadRequest(new { error = "Username is required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(options.Password))
+            {
+                return BadRequest(new { error = "Password is required" });
+            }
+
+            connectionBuilder.ConfigureServer(options);
+
+            logger.LogInformation("MCP server initialized with connection to {Host}:{Port}",
+                options.Host, options.Port);
+
+            return Ok(new
+            {
+                success = true,
+                message = "MCP server initialized successfully",
+                configuration = new
+                {
+                    host = options.Host,
+                    port = options.Port,
+                    username = options.Username
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error initializing MCP server");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get the current server configuration status.
+    /// Endpoint: GET /mcp/configuration
+    /// </summary>
+    [HttpGet("configuration")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public IActionResult GetConfiguration()
+    {
+        if (!connectionBuilder.IsConfigured)
+        {
+            return Ok(new
+            {
+                configured = false,
+                message = "MCP server not initialized. Call POST /mcp/initialize to configure connection parameters."
+            });
+        }
+
+        var config = connectionBuilder.GetServerConfiguration();
+        return Ok(new
+        {
+            configured = true,
+            host = config.Host,
+            port = config.Port,
+            username = config.Username
+        });
+    }
+
     /// <summary>
     /// Lists all available MCP tools.
     /// Endpoint: GET /mcp/tools
@@ -36,10 +109,10 @@ public class McpController(
                     type = "object",
                     properties = new
                     {
-                        connectionString = new
+                        database = new
                         {
                             type = "string",
-                            description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                            description = "Database name to scan (e.g., 'mydb', 'production_db')"
                         },
                         schemaFilter = new
                         {
@@ -52,7 +125,7 @@ public class McpController(
                             description = "Optional natural language question about the schema (e.g., 'What tables have foreign keys to the users table?')"
                         }
                     },
-                    required = new[] { "connectionString" }
+                    required = new[] { "database" }
                 }
             },
             new McpTool
@@ -64,10 +137,10 @@ public class McpController(
                     type = "object",
                     properties = new
                     {
-                        connectionString = new
+                        database = new
                         {
                             type = "string",
-                            description = "PostgreSQL connection string"
+                            description = "Database name to query (e.g., 'mydb', 'production_db')"
                         },
                         query = new
                         {
@@ -75,7 +148,7 @@ public class McpController(
                             description = "Natural language query describing what data to retrieve (e.g., 'Show me all users who made orders in the last 30 days with their order totals')"
                         }
                     },
-                    required = new[] { "connectionString", "query" }
+                    required = new[] { "database", "query" }
                 }
             },
             new McpTool
@@ -87,10 +160,10 @@ public class McpController(
                     type = "object",
                     properties = new
                     {
-                        connectionString = new
+                        database = new
                         {
                             type = "string",
-                            description = "PostgreSQL connection string"
+                            description = "Database name to query (e.g., 'mydb', 'production_db')"
                         },
                         naturalLanguageQuery = new
                         {
@@ -98,7 +171,7 @@ public class McpController(
                             description = "Detailed natural language description of the desired query (e.g., 'Calculate the average order value by customer segment for Q4 2024, showing only segments with more than 100 orders')"
                         }
                     },
-                    required = new[] { "connectionString", "naturalLanguageQuery" }
+                    required = new[] { "database", "naturalLanguageQuery" }
                 }
             }
         ];
@@ -223,9 +296,20 @@ public class McpController(
         Dictionary<string, object?> arguments,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
+        if (!connectionBuilder.IsConfigured)
+        {
+            return new McpToolCallResponse
+            {
+                Success = false,
+                Error = "MCP server not initialized. Please call POST /mcp/initialize first to configure connection parameters."
+            };
+        }
+
+        var database = GetRequiredArgument<string>(arguments, "database");
         var schemaFilter = GetOptionalArgument<string>(arguments, "schemaFilter");
         var question = GetOptionalArgument<string>(arguments, "question");
+
+        var connectionString = connectionBuilder.BuildConnectionString(database);
 
         if (!string.IsNullOrEmpty(question))
         {
@@ -238,10 +322,11 @@ public class McpController(
             return new McpToolCallResponse
             {
                 Success = true,
-                Data = new { answer, question },
+                Data = new { answer, question, database },
                 Metadata = new Dictionary<string, object>
                 {
                     ["executedAt"] = DateTime.UtcNow,
+                    ["database"] = database,
                     ["hasAiResponse"] = true
                 }
             };
@@ -260,6 +345,7 @@ public class McpController(
             Metadata = new Dictionary<string, object>
             {
                 ["executedAt"] = DateTime.UtcNow,
+                ["database"] = database,
                 ["tableCount"] = schema.TableCount,
                 ["serverVersion"] = schema.ServerVersion ?? "unknown"
             }
@@ -270,8 +356,19 @@ public class McpController(
         Dictionary<string, object?> arguments,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
+        if (!connectionBuilder.IsConfigured)
+        {
+            return new McpToolCallResponse
+            {
+                Success = false,
+                Error = "MCP server not initialized. Please call POST /mcp/initialize first to configure connection parameters."
+            };
+        }
+
+        var database = GetRequiredArgument<string>(arguments, "database");
         var query = GetRequiredArgument<string>(arguments, "query");
+
+        var connectionString = connectionBuilder.BuildConnectionString(database);
 
         var result = await queryService.QueryDataAsync(
             connectionString,
@@ -285,6 +382,7 @@ public class McpController(
             Metadata = new Dictionary<string, object>
             {
                 ["executedAt"] = DateTime.UtcNow,
+                ["database"] = database,
                 ["rowCount"] = result.RowCount,
                 ["executionTimeMs"] = result.ExecutionTimeMs
             }
@@ -295,8 +393,19 @@ public class McpController(
         Dictionary<string, object?> arguments,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetRequiredArgument<string>(arguments, "connectionString");
+        if (!connectionBuilder.IsConfigured)
+        {
+            return new McpToolCallResponse
+            {
+                Success = false,
+                Error = "MCP server not initialized. Please call POST /mcp/initialize first to configure connection parameters."
+            };
+        }
+
+        var database = GetRequiredArgument<string>(arguments, "database");
         var naturalLanguageQuery = GetRequiredArgument<string>(arguments, "naturalLanguageQuery");
+
+        var connectionString = connectionBuilder.BuildConnectionString(database);
 
         var result = await sqlGenerationService.GenerateAndExecuteQueryAsync(
             connectionString,
@@ -310,6 +419,7 @@ public class McpController(
             Metadata = new Dictionary<string, object>
             {
                 ["executedAt"] = DateTime.UtcNow,
+                ["database"] = database,
                 ["isSafe"] = result.IsSafe,
                 ["confidence"] = result.ConfidenceScore ?? 0.0
             }

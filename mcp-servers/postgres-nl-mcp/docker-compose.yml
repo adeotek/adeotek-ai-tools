@@ -14,8 +14,8 @@ services:
       # ASP.NET Core Configuration
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:5000}
-      # PostgreSQL Connection
-      - Postgres__DefaultConnectionString=${Postgres__DefaultConnectionString:-Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=password}
+      # PostgreSQL Connection - No longer configured via environment
+      # Connection parameters are now configured via POST /mcp/initialize endpoint
       # AI Configuration
       - Ai__Provider=${Ai__Provider:-openai}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
