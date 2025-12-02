@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using Microsoft.SemanticKernel;
+using PostgresNaturalLanguageMcp.Endpoints;
 using PostgresNaturalLanguageMcp.Models;
 using PostgresNaturalLanguageMcp.Services;
 using Scalar.AspNetCore;
@@ -20,14 +21,13 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services to the container
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
+// Configure JSON serialization for Minimal APIs
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.WriteIndented = true;
+});
 
 // Configure options
 builder.Services.Configure<PostgresOptions>(
@@ -233,7 +233,8 @@ app.UseCors();
 
 app.UseAuthorization();
 
-app.MapControllers();
+// Map MCP Minimal API endpoints
+app.MapMcpEndpoints();
 
 app.MapHealthChecks("/health");
 
@@ -269,3 +270,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Make Program class accessible to tests
+public partial class Program { }
