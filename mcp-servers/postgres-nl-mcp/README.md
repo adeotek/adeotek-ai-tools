@@ -99,12 +99,28 @@ To configure a provider, set the `Ai__Provider` environment variable to one of: 
 2. **Access the services**:
    - **MCP Server API**: http://localhost:5000
    - **API Documentation**: http://localhost:5000/scalar/v1
-   - **PostgreSQL**: localhost:5432 (postgres/postgres123)
+   - **PostgreSQL**: localhost:5432 (postgres/password)
    - **pgAdmin**: http://localhost:8080 (admin@admin.com/admin)
 
-3. **Test the API**:
+3. **Initialize the MCP server** (configure connection parameters):
    ```bash
+   curl -X POST http://localhost:5000/mcp/initialize \
+     -H "Content-Type: application/json" \
+     -d '{
+       "host": "postgres",
+       "port": 5432,
+       "username": "postgres",
+       "password": "password"
+     }'
+   ```
+
+4. **Test the API**:
+   ```bash
+   # List available tools
    curl http://localhost:5000/mcp/tools
+
+   # Check configuration status
+   curl http://localhost:5000/mcp/configuration
    ```
 
 ### Local Development
@@ -139,9 +155,6 @@ To configure a provider, set the `Ai__Provider` environment variable to one of: 
    # dotnet user-secrets set "Ai:Provider" "ollama"
    # dotnet user-secrets set "Ai:Model" "llama3"
    # dotnet user-secrets set "Ai:BaseUrl" "http://localhost:11434"
-
-   # PostgreSQL connection
-   dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;Database=testdb;Username=postgres;Password=yourpass"
    ```
 
 3. **Run the server**:
@@ -151,23 +164,66 @@ To configure a provider, set the `Ai__Provider` environment variable to one of: 
    dotnet run
    ```
 
-4. **Run tests**:
+4. **Initialize the server** (configure PostgreSQL connection):
+   ```bash
+   curl -X POST http://localhost:5000/mcp/initialize \
+     -H "Content-Type: application/json" \
+     -d '{
+       "host": "localhost",
+       "port": 5432,
+       "username": "postgres",
+       "password": "yourpass"
+     }'
+   ```
+
+5. **Run tests**:
    ```bash
    dotnet test
    ```
 
 ## Configuration
 
+### PostgreSQL Connection
+
+**NEW APPROACH**: PostgreSQL server connection parameters are now configured via the initialization endpoint, not through environment variables or config files.
+
+**Initialize the server**:
+```bash
+POST /mcp/initialize
+Content-Type: application/json
+
+{
+  "host": "localhost",
+  "port": 5432,
+  "username": "postgres",
+  "password": "yourpass"
+}
+```
+
+**Database per tool call**: Each MCP tool call now accepts a `database` parameter instead of a full connection string. This allows querying different databases from the same server without reconfiguration.
+
+**Example**:
+```json
+{
+  "name": "scan_database_structure",
+  "arguments": {
+    "database": "testdb",
+    "question": "What tables exist?"
+  }
+}
+```
+
 ### Environment Variables
 
-Configure via environment variables (recommended for production):
+Configure AI and security settings via environment variables (recommended for production):
 
 ```bash
-# PostgreSQL Configuration
-Postgres__DefaultConnectionString="Host=localhost;Port=5432;Database=mydb;Username=user;Password=pass;SSL Mode=Require"
+# PostgreSQL Connection Settings (not connection string)
 Postgres__MaxRetries=3
 Postgres__ConnectionTimeoutSeconds=30
 Postgres__CommandTimeoutSeconds=60
+Postgres__UseSsl=true
+Postgres__MaxPoolSize=100
 
 # AI Configuration
 # Choose your LLM provider: openai, anthropic, gemini, ollama, lmstudio, azureopenai
@@ -213,9 +269,12 @@ Security__AllowSchemaModification=false
 ```json
 {
   "Postgres": {
-    "DefaultConnectionString": null,
     "MaxRetries": 3,
-    "UseSsl": true
+    "ConnectionTimeoutSeconds": 30,
+    "CommandTimeoutSeconds": 60,
+    "UseSsl": true,
+    "MaxPoolSize": 100,
+    "MinPoolSize": 0
   },
   "Ai": {
     "Provider": "openai",
@@ -249,7 +308,58 @@ Security__AllowSchemaModification=false
 
 ## API Usage
 
-### List Available Tools
+### 1. Initialize the Server (Required First)
+
+```bash
+POST /mcp/initialize
+Content-Type: application/json
+
+{
+  "host": "localhost",
+  "port": 5432,
+  "username": "postgres",
+  "password": "yourpass"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "MCP server initialized successfully",
+  "configuration": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres"
+  }
+}
+```
+
+### 2. Check Configuration Status
+
+```bash
+GET /mcp/configuration
+```
+
+**Response** (when configured):
+```json
+{
+  "configured": true,
+  "host": "localhost",
+  "port": 5432,
+  "username": "postgres"
+}
+```
+
+**Response** (when not configured):
+```json
+{
+  "configured": false,
+  "message": "MCP server not initialized. Call POST /mcp/initialize to configure connection parameters."
+}
+```
+
+### 3. List Available Tools
 
 ```bash
 GET /mcp/tools
@@ -262,23 +372,21 @@ GET /mcp/tools
     {
       "name": "scan_database_structure",
       "description": "Analyze and describe PostgreSQL database schema...",
-      "inputSchema": { ... }
-    },
-    {
-      "name": "query_database_data",
-      "description": "Query and analyze data from PostgreSQL tables...",
-      "inputSchema": { ... }
-    },
-    {
-      "name": "advanced_sql_query",
-      "description": "Generate and execute optimized SQL queries...",
-      "inputSchema": { ... }
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "database": { "type": "string", "description": "Database name" },
+          "schemaFilter": { "type": "string" },
+          "question": { "type": "string" }
+        },
+        "required": ["database"]
+      }
     }
   ]
 }
 ```
 
-### Call a Tool
+### 4. Call a Tool
 
 ```bash
 POST /mcp/tools/call
@@ -287,7 +395,7 @@ Content-Type: application/json
 {
   "name": "scan_database_structure",
   "arguments": {
-    "connectionString": "Host=localhost;Database=testdb;Username=postgres;Password=pass",
+    "database": "testdb",
     "schemaFilter": "public",
     "question": "What tables exist in the database?"
   }
@@ -306,6 +414,7 @@ Content-Type: application/json
   },
   "metadata": {
     "executedAt": "2024-11-04T10:30:00Z",
+    "database": "testdb",
     "tableCount": 15,
     "serverVersion": "16.1"
   }
@@ -322,7 +431,7 @@ curl -X POST http://localhost:5000/mcp/tools/call \
   -d '{
     "name": "scan_database_structure",
     "arguments": {
-      "connectionString": "Host=postgres;Database=testdb;Username=postgres;Password=postgres123",
+      "database": "testdb",
       "question": "Show me all foreign key relationships"
     }
   }'
@@ -336,7 +445,7 @@ curl -X POST http://localhost:5000/mcp/tools/call \
   -d '{
     "name": "query_database_data",
     "arguments": {
-      "connectionString": "Host=postgres;Database=testdb;Username=postgres;Password=postgres123",
+      "database": "testdb",
       "query": "Show me the top 5 customers by total order value with their email addresses"
     }
   }'
@@ -350,7 +459,7 @@ curl -X POST http://localhost:5000/mcp/tools/call \
   -d '{
     "name": "advanced_sql_query",
     "arguments": {
-      "connectionString": "Host=postgres;Database=testdb;Username=postgres;Password=postgres123",
+      "database": "testdb",
       "naturalLanguageQuery": "Calculate the monthly revenue trend for the last 12 months, grouped by product category, including percentage change month-over-month"
     }
   }'

@@ -18,6 +18,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
             builder.Configuration.GetSection(McpLoggingOptions.SectionName));
 
         // Register application services
+        builder.Services.AddSingleton<IConnectionBuilderService, ConnectionBuilderService>();
         builder.Services.AddScoped<IDatabaseSchemaService, DatabaseSchemaService>();
         builder.Services.AddScoped<IQueryService, QueryService>();
 

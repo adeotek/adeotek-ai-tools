@@ -1,6 +1,6 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using PostgresMcp.Models;
 using PostgresMcp.Services;
 
@@ -14,7 +14,7 @@ public static class McpEndpoints
     extension(IEndpointRouteBuilder endpoints)
     {
         /// <summary>
-        /// Maps MCP endpoints to the application.
+        /// Maps root endpoint to the application.
         /// </summary>
         public IEndpointRouteBuilder MapRootEndpoint()
         {
@@ -32,10 +32,12 @@ public static class McpEndpoints
                 },
                 endpoints = new
                 {
+                    initialize = "/mcp/initialize",
+                    configuration = "/mcp/configuration",
                     tools = "/mcp/tools",
                     call = "/mcp/tools/call",
                     jsonrpc = "/mcp/jsonrpc",
-                    health = "/health",
+                    health = "/_health",
                     documentation = "/scalar/v1"
                 },
                 documentation = "/scalar/v1"
@@ -51,6 +53,17 @@ public static class McpEndpoints
         {
             var mcpGroup = endpoints.MapGroup("/mcp")
                 .WithTags("MCP");
+
+            mcpGroup.MapPost("/initialize", Initialize)
+                .WithName("InitializeMcpServer")
+                .WithDescription("Initialize/configure the MCP server with PostgreSQL server connection parameters")
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
+
+            mcpGroup.MapGet("/configuration", GetConfiguration)
+                .WithName("GetMcpConfiguration")
+                .WithDescription("Get the current server configuration status")
+                .Produces(StatusCodes.Status200OK);
 
             mcpGroup.MapGet("/tools", GetToolsAsync)
                 .WithName("GetMcpTools")
@@ -72,6 +85,75 @@ public static class McpEndpoints
     }
 
     /// <summary>
+    /// Initialize/configure the MCP server with PostgreSQL server connection parameters.
+    /// </summary>
+    private static Results<Ok<object>, BadRequest<object>> Initialize(
+        ServerConnectionOptions options,
+        IConnectionBuilderService connectionBuilder,
+        ILogger<Program> logger)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(options.Username))
+            {
+                return TypedResults.BadRequest<object>(new { error = "Username is required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(options.Password))
+            {
+                return TypedResults.BadRequest<object>(new { error = "Password is required" });
+            }
+
+            connectionBuilder.ConfigureServer(options);
+
+            logger.LogInformation("MCP server initialized with connection to {Host}:{Port}",
+                options.Host, options.Port);
+
+            return TypedResults.Ok<object>(new
+            {
+                success = true,
+                message = "MCP server initialized successfully",
+                configuration = new
+                {
+                    host = options.Host,
+                    port = options.Port,
+                    username = options.Username
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error initializing MCP server");
+            return TypedResults.BadRequest<object>(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get the current server configuration status.
+    /// </summary>
+    private static Ok<object> GetConfiguration(
+        IConnectionBuilderService connectionBuilder)
+    {
+        if (!connectionBuilder.IsConfigured)
+        {
+            return TypedResults.Ok<object>(new
+            {
+                configured = false,
+                message = "MCP server not initialized. Call POST /mcp/initialize to configure connection parameters."
+            });
+        }
+
+        var config = connectionBuilder.GetServerConfiguration();
+        return TypedResults.Ok<object>(new
+        {
+            configured = true,
+            host = config.Host,
+            port = config.Port,
+            username = config.Username
+        });
+    }
+
+    /// <summary>
     /// List all available MCP tools.
     /// </summary>
     private static IResult GetToolsAsync()
@@ -89,13 +171,13 @@ public static class McpEndpoints
                         type = "object",
                         properties = new
                         {
-                            connectionString = new
+                            database = new
                             {
                                 type = "string",
-                                description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                                description = "Database name to scan (e.g., 'mydb', 'production_db')"
                             }
                         },
-                        required = new[] { "connectionString" }
+                        required = new[] { "database" }
                     }
                 },
                 new McpTool
@@ -107,10 +189,10 @@ public static class McpEndpoints
                         type = "object",
                         properties = new
                         {
-                            connectionString = new
+                            database = new
                             {
                                 type = "string",
-                                description = "PostgreSQL connection string"
+                                description = "Database name to query (e.g., 'mydb', 'production_db')"
                             },
                             query = new
                             {
@@ -118,7 +200,7 @@ public static class McpEndpoints
                                 description = "SQL SELECT query to execute (must be read-only)"
                             }
                         },
-                        required = new[] { "connectionString", "query" }
+                        required = new[] { "database", "query" }
                     }
                 }
             ]
@@ -132,9 +214,9 @@ public static class McpEndpoints
     /// </summary>
     private static async Task<IResult> CallToolAsync(
         [FromBody] McpToolCallRequest request,
+        IConnectionBuilderService connectionBuilder,
         IDatabaseSchemaService schemaService,
         IQueryService queryService,
-        IOptions<PostgresOptions> postgresOptions,
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
@@ -145,9 +227,9 @@ public static class McpEndpoints
             var response = request.Name switch
             {
                 "scan_database_structure" => await ScanDatabaseStructureAsync(
-                    request.Arguments, schemaService, cancellationToken),
+                    request.Arguments, connectionBuilder, schemaService, cancellationToken),
                 "query_database" => await QueryDatabaseAsync(
-                    request.Arguments, queryService, postgresOptions.Value, cancellationToken),
+                    request.Arguments, connectionBuilder, queryService, cancellationToken),
                 _ => new McpToolCallResponse
                 {
                     IsError = true,
@@ -174,9 +256,9 @@ public static class McpEndpoints
     /// </summary>
     private static async Task<IResult> JsonRpcAsync(
         [FromBody] JsonRpcRequest request,
+        IConnectionBuilderService connectionBuilder,
         IDatabaseSchemaService schemaService,
         IQueryService queryService,
-        IOptions<PostgresOptions> postgresOptions,
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
@@ -186,7 +268,7 @@ public static class McpEndpoints
             {
                 "tools/list" => GetToolsList(),
                 "tools/call" => await HandleToolCallAsync(
-                    request.Params, schemaService, queryService, postgresOptions, cancellationToken),
+                    request.Params, connectionBuilder, schemaService, queryService, cancellationToken),
                 _ => throw new InvalidOperationException($"Unknown method: {request.Method}")
             };
 
@@ -215,10 +297,24 @@ public static class McpEndpoints
 
     private static async Task<McpToolCallResponse> ScanDatabaseStructureAsync(
         Dictionary<string, object?> arguments,
+        IConnectionBuilderService connectionBuilder,
         IDatabaseSchemaService schemaService,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetConnectionString(arguments, null);
+        if (!connectionBuilder.IsConfigured)
+        {
+            return new McpToolCallResponse
+            {
+                IsError = true,
+                Content = [new McpContent
+                {
+                    Text = "MCP server not initialized. Please call POST /mcp/initialize first to configure connection parameters."
+                }]
+            };
+        }
+
+        var database = GetRequiredArgument<string>(arguments, "database");
+        var connectionString = connectionBuilder.BuildConnectionString(database);
 
         var schema = await schemaService.ScanDatabaseSchemaAsync(connectionString, cancellationToken);
 
@@ -236,18 +332,26 @@ public static class McpEndpoints
 
     private static async Task<McpToolCallResponse> QueryDatabaseAsync(
         Dictionary<string, object?> arguments,
+        IConnectionBuilderService connectionBuilder,
         IQueryService queryService,
-        PostgresOptions postgresOptions,
         CancellationToken cancellationToken)
     {
-        var connectionString = GetConnectionString(arguments, postgresOptions);
-
-        if (!arguments.TryGetValue("query", out var queryObj) || queryObj == null)
+        if (!connectionBuilder.IsConfigured)
         {
-            throw new ArgumentException("Missing required argument: query");
+            return new McpToolCallResponse
+            {
+                IsError = true,
+                Content = [new McpContent
+                {
+                    Text = "MCP server not initialized. Please call POST /mcp/initialize first to configure connection parameters."
+                }]
+            };
         }
 
-        var query = queryObj.ToString() ?? throw new ArgumentException("Query cannot be null");
+        var database = GetRequiredArgument<string>(arguments, "database");
+        var query = GetRequiredArgument<string>(arguments, "query");
+
+        var connectionString = connectionBuilder.BuildConnectionString(database);
 
         // Validate query safety first
         if (!queryService.ValidateQuerySafety(query))
@@ -276,20 +380,32 @@ public static class McpEndpoints
         };
     }
 
-    private static string GetConnectionString(Dictionary<string, object?> arguments, PostgresOptions? postgresOptions)
+    private static T GetRequiredArgument<T>(Dictionary<string, object?> arguments, string key)
     {
-        if (arguments.TryGetValue("connectionString", out var connStrObj) && connStrObj != null)
+        if (!arguments.TryGetValue(key, out var value) || value == null)
         {
-            return connStrObj.ToString() ?? throw new ArgumentException("Connection string cannot be null");
+            throw new ArgumentException($"Required argument '{key}' is missing");
         }
 
-        // Use default connection string if not provided
-        if (postgresOptions != null && !string.IsNullOrEmpty(postgresOptions.DefaultConnectionString))
+        if (value is JsonElement jsonElement)
         {
-            return postgresOptions.DefaultConnectionString;
+            return JsonSerializer.Deserialize<T>(jsonElement.GetRawText())
+                ?? throw new ArgumentException($"Cannot deserialize argument '{key}'");
         }
 
-        throw new ArgumentException("No connection string provided and no default configured");
+        if (value is T typedValue)
+        {
+            return typedValue;
+        }
+
+        try
+        {
+            return (T)Convert.ChangeType(value, typeof(T));
+        }
+        catch
+        {
+            throw new ArgumentException($"Cannot convert argument '{key}' to type {typeof(T).Name}");
+        }
     }
 
     private static object GetToolsList()
@@ -307,13 +423,13 @@ public static class McpEndpoints
                         type = "object",
                         properties = new
                         {
-                            connectionString = new
+                            database = new
                             {
                                 type = "string",
-                                description = "PostgreSQL connection string (e.g., 'Host=localhost;Database=mydb;Username=user;Password=pass')"
+                                description = "Database name to scan (e.g., 'mydb', 'production_db')"
                             }
                         },
-                        required = new[] { "connectionString" }
+                        required = new[] { "database" }
                     }
                 },
                 new McpTool
@@ -325,10 +441,10 @@ public static class McpEndpoints
                         type = "object",
                         properties = new
                         {
-                            connectionString = new
+                            database = new
                             {
                                 type = "string",
-                                description = "PostgreSQL connection string"
+                                description = "Database name to query (e.g., 'mydb', 'production_db')"
                             },
                             query = new
                             {
@@ -336,7 +452,7 @@ public static class McpEndpoints
                                 description = "SQL SELECT query to execute (must be read-only)"
                             }
                         },
-                        required = new[] { "connectionString", "query" }
+                        required = new[] { "database", "query" }
                     }
                 }
             ]
@@ -347,9 +463,9 @@ public static class McpEndpoints
 
     private static async Task<object> HandleToolCallAsync(
         Dictionary<string, object?>? parameters,
+        IConnectionBuilderService connectionBuilder,
         IDatabaseSchemaService schemaService,
         IQueryService queryService,
-        IOptions<PostgresOptions> postgresOptions,
         CancellationToken cancellationToken)
     {
         if (parameters == null)
@@ -381,9 +497,9 @@ public static class McpEndpoints
         var response = request.Name switch
         {
             "scan_database_structure" => await ScanDatabaseStructureAsync(
-                request.Arguments, schemaService, cancellationToken),
+                request.Arguments, connectionBuilder, schemaService, cancellationToken),
             "query_database" => await QueryDatabaseAsync(
-                request.Arguments, queryService, postgresOptions.Value, cancellationToken),
+                request.Arguments, connectionBuilder, queryService, cancellationToken),
             _ => new McpToolCallResponse
             {
                 IsError = true,

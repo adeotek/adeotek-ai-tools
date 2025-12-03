@@ -11,11 +11,6 @@ public class PostgresOptions
     public const string SectionName = "Postgres";
 
     /// <summary>
-    /// Default connection string (can be overridden via configuration or environment variables).
-    /// </summary>
-    public string? DefaultConnectionString { get; set; }
-
-    /// <summary>
     /// Maximum number of connection retries.
     /// </summary>
     public int MaxRetries { get; set; } = 3;
@@ -44,4 +39,36 @@ public class PostgresOptions
     /// Minimum size of connection pool.
     /// </summary>
     public int MinPoolSize { get; set; }
+}
+
+/// <summary>
+/// PostgreSQL server connection parameters.
+/// These parameters are configured at MCP initialization and used to build connection strings.
+/// </summary>
+public class ServerConnectionOptions
+{
+    /// <summary>
+    /// PostgreSQL server host/address.
+    /// </summary>
+    public string Host { get; set; } = "localhost";
+
+    /// <summary>
+    /// PostgreSQL server port.
+    /// </summary>
+    public int Port { get; set; } = 5432;
+
+    /// <summary>
+    /// PostgreSQL username.
+    /// </summary>
+    public required string Username { get; set; }
+
+    /// <summary>
+    /// PostgreSQL password.
+    /// </summary>
+    public required string Password { get; set; }
+
+    /// <summary>
+    /// Whether the configuration has been initialized.
+    /// </summary>
+    public bool IsConfigured { get; set; }
 }
