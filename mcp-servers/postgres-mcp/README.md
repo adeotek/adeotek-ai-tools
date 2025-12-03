@@ -1,6 +1,8 @@
 # PostgreSQL MCP Server
 
-A **read-only** Model Context Protocol (MCP) server for PostgreSQL database operations. This MCP server provides secure, read-only access to PostgreSQL databases for AI agents, blocking all data and schema modifications.
+A **read-only** Model Context Protocol (MCP) server for PostgreSQL database operations. This MCP server provides secure, read-only access to PostgreSQL databases for AI agents and applications, blocking all data and schema modifications.
+
+**Version**: 2.0.0 | **MCP Protocol**: 2024-11-05 | **.NET**: 10
 
 ## Features
 
@@ -51,6 +53,37 @@ Execute read-only SELECT queries against the database.
 - Dangerous function blocking
 - No AI/LLM dependencies (simple, lightweight)
 
+## What's New in v2.0
+
+### Full MCP Protocol Support (v2024-11-05)
+- **JSON-RPC 2.0 Endpoint**: Standard MCP clients connect via `/mcp/v1/messages`
+- **All MCP Methods**: initialize, initialized, ping, tools/*, resources/*, prompts/*
+- **Batch Requests**: Send multiple requests in a single batch operation
+- **Error Codes**: Proper JSON-RPC error codes (-32700, -32600, -32601, -32602, -32603, -32000-32002)
+
+### Real-Time Notifications (SSE)
+- **Server-Sent Events**: Real-time updates via `/mcp/v1/sse` endpoint
+- **Heartbeat Support**: Automatic connection keepalive
+- **Event Types**: resources/updated, tools/list_changed, prompts/list_changed, progress
+- **Subscribe/Unsubscribe**: Dynamic notification subscriptions
+
+### Resources System
+- **List Resources**: Available PostgreSQL databases, connections, and metadata
+- **Read Resources**: Access resource contents with detailed information
+- **Pagination**: Handle large result sets efficiently
+- **Subscribe to Changes**: Get notified when resources are updated
+
+### Prompts System
+- **4 Built-in Templates**: analyze_table, find_relationships, recent_data, search_columns
+- **Argument Substitution**: Dynamic parameter replacement for flexible prompts
+- **AI Agent Support**: Helpful for AI agents to interact with your database
+- **Easy Integration**: Simple interface for prompt discovery and execution
+
+### Server Discovery
+- **`.well-known/mcp.json`**: Standard MCP server discovery endpoint
+- **Automatic Detection**: MCP clients can discover your server capabilities
+- **Protocol Negotiation**: Proper version and capability advertisement
+
 ## Quick Start
 
 ### Using Docker Compose (Recommended)
@@ -63,35 +96,43 @@ Execute read-only SELECT queries against the database.
 
 2. **Access the services**:
    - **MCP Server API**: http://localhost:5000
+   - **MCP Protocol Endpoint**: http://localhost:5000/mcp/v1/messages (JSON-RPC 2.0)
    - **API Documentation**: http://localhost:5000/scalar/v1
+   - **Server Discovery**: http://localhost:5000/.well-known/mcp.json
    - **PostgreSQL**: localhost:5432 (postgres/password)
    - **pgAdmin**: http://localhost:8080 (admin@admin.com/admin)
 
-3. **Initialize the MCP server** (configure connection parameters):
+3. **Connect with Standard MCP Client** (recommended for v2.0):
    ```bash
-   curl -X POST http://localhost:5000/mcp/initialize \
+   # Using an MCP-compatible client, connect to:
+   ws://localhost:5000/mcp/v1/messages
+   # or
+   http://localhost:5000/mcp/v1/messages (for HTTP transport)
+   ```
+
+4. **Test the MCP JSON-RPC Endpoint**:
+   ```bash
+   # List available tools using MCP protocol
+   curl -X POST http://localhost:5000/mcp/v1/messages \
      -H "Content-Type: application/json" \
      -d '{
-       "host": "postgres",
-       "port": 5432,
-       "username": "postgres",
-       "password": "password"
+       "jsonrpc": "2.0",
+       "id": 1,
+       "method": "tools/list",
+       "params": {}
      }'
    ```
 
-4. **Test the API**:
+5. **Subscribe to Real-Time Notifications** (SSE):
    ```bash
-   # List available tools
-   curl http://localhost:5000/mcp/tools
-
-   # Check configuration status
-   curl http://localhost:5000/mcp/configuration
+   # Connect to real-time event stream
+   curl http://localhost:5000/mcp/v1/sse
    ```
 
 ### Local Development
 
 1. **Prerequisites**:
-   - .NET 9 SDK
+   - .NET 10 SDK
    - PostgreSQL 16+
 
 2. **Run the server**:
@@ -102,23 +143,34 @@ Execute read-only SELECT queries against the database.
    dotnet run
    ```
 
-3. **Initialize the server** (configure PostgreSQL connection):
+3. **Test the MCP v2.0 Endpoint**:
    ```bash
-   curl -X POST http://localhost:5000/mcp/initialize \
+   # Using standard MCP JSON-RPC 2.0 protocol
+   curl -X POST http://localhost:5000/mcp/v1/messages \
      -H "Content-Type: application/json" \
      -d '{
-       "host": "localhost",
-       "port": 5432,
-       "username": "postgres",
-       "password": "yourpass"
+       "jsonrpc": "2.0",
+       "id": 1,
+       "method": "tools/list",
+       "params": {}
      }'
    ```
 
-4. **Run tests**:
+4. **Monitor Real-Time Events**:
+   ```bash
+   # Connect to SSE endpoint for notifications
+   curl http://localhost:5000/mcp/v1/sse
+   ```
+
+5. **Run tests**:
    ```bash
    cd ../../
    dotnet test
    ```
+
+6. **Review Example Requests**:
+   - See `sample-requests.md` for detailed API examples
+   - See `INTEGRATION_GUIDE.md` for MCP client integration instructions
 
 ## Configuration
 
@@ -202,9 +254,192 @@ Security__MaxQueryExecutionSeconds=30
 }
 ```
 
-## API Usage
+## API Endpoints
 
-### 1. Initialize the Server (Required First)
+### MCP v2.0 - JSON-RPC 2.0 Protocol (Recommended)
+
+All v2.0 endpoints use the JSON-RPC 2.0 specification for standard MCP client compatibility.
+
+#### `/mcp/v1/messages` - Primary MCP Endpoint
+
+Handles all MCP protocol requests using JSON-RPC 2.0 format.
+
+**Example: List Tools**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "scan_database_structure",
+        "description": "Scan and analyze PostgreSQL database structure...",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "database": { "type": "string" }
+          },
+          "required": ["database"]
+        }
+      },
+      {
+        "name": "query_database",
+        "description": "Execute a read-only SELECT query...",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "database": { "type": "string" },
+            "query": { "type": "string" }
+          },
+          "required": ["database", "query"]
+        }
+      }
+    ]
+  }
+}
+```
+
+**Example: Call a Tool**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "query_database",
+    "arguments": {
+      "database": "testdb",
+      "query": "SELECT * FROM customers LIMIT 10"
+    }
+  }
+}
+```
+
+#### `/mcp/v1/sse` - Real-Time Notifications
+
+Server-Sent Events endpoint for real-time updates and notifications.
+
+**Features**:
+- Automatic heartbeat (keeps connection alive)
+- Resource updates: `resources/updated`
+- Tool changes: `tools/list_changed`
+- Prompt updates: `prompts/list_changed`
+- Progress notifications: `progress`
+
+**Connect**:
+```bash
+curl http://localhost:5000/mcp/v1/sse
+```
+
+#### `/.well-known/mcp.json` - Server Discovery
+
+Standard MCP server discovery endpoint.
+
+**Response**:
+```json
+{
+  "protocolVersion": "2024-11-05",
+  "capabilities": {
+    "tools": {},
+    "resources": {},
+    "prompts": {},
+    "notifications": {}
+  },
+  "serverInfo": {
+    "name": "PostgreSQL MCP Server",
+    "version": "2.0.0"
+  }
+}
+```
+
+#### Resources - Database Resources
+
+**List Resources**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "resources/list",
+  "params": {
+    "cursor": "0"
+  }
+}
+```
+
+**Read Resource**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/read",
+  "params": {
+    "uri": "postgres://databases/testdb"
+  }
+}
+```
+
+#### Prompts - Database Query Templates
+
+**List Prompts**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "prompts/list",
+  "params": {}
+}
+```
+
+**Get Prompt**:
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": {
+    "name": "analyze_table",
+    "arguments": {
+      "table_name": "customers"
+    }
+  }
+}
+```
+
+### Legacy API Endpoints (v1 - Backward Compatible)
+
+These endpoints are maintained for backward compatibility. For new integrations, use the MCP v2.0 endpoints above.
+
+#### `POST /mcp/initialize` - Initialize Server
+
+Configure the PostgreSQL connection parameters.
 
 ```bash
 POST /mcp/initialize
@@ -231,13 +466,13 @@ Content-Type: application/json
 }
 ```
 
-### 2. Check Configuration Status
+#### `GET /mcp/configuration` - Check Status
 
 ```bash
 GET /mcp/configuration
 ```
 
-**Response** (when configured):
+**Response**:
 ```json
 {
   "configured": true,
@@ -247,58 +482,15 @@ GET /mcp/configuration
 }
 ```
 
-### 3. List Available Tools
+#### `GET /mcp/tools` - List Tools
 
 ```bash
 GET /mcp/tools
 ```
 
-**Response**:
-```json
-{
-  "tools": [
-    {
-      "name": "scan_database_structure",
-      "description": "Scan and analyze PostgreSQL database structure...",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "database": { "type": "string", "description": "Database name" }
-        },
-        "required": ["database"]
-      }
-    },
-    {
-      "name": "query_database",
-      "description": "Execute a read-only SELECT query...",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "database": { "type": "string" },
-          "query": { "type": "string" }
-        },
-        "required": ["database", "query"]
-      }
-    }
-  ]
-}
-```
+**Response**: (Same structure as v2.0 `tools/list` result)
 
-### 4. Scan Database Structure
-
-```bash
-POST /mcp/tools/call
-Content-Type: application/json
-
-{
-  "name": "scan_database_structure",
-  "arguments": {
-    "database": "testdb"
-  }
-}
-```
-
-### 5. Query Database
+#### `POST /mcp/tools/call` - Execute Tool
 
 ```bash
 POST /mcp/tools/call
@@ -312,6 +504,44 @@ Content-Type: application/json
   }
 }
 ```
+
+## Built-In Prompts
+
+The server includes 4 pre-configured prompt templates to help AI agents query your database:
+
+### 1. analyze_table
+Analyzes the structure and content of a specific table.
+
+**Arguments**:
+- `table_name` (required): Name of the table to analyze
+
+**Use Case**: Get a comprehensive overview of a table's schema and data characteristics.
+
+### 2. find_relationships
+Discovers foreign key relationships and table dependencies.
+
+**Arguments**:
+- `table_name` (required): Table to find relationships for
+
+**Use Case**: Understand how tables are connected and what data dependencies exist.
+
+### 3. recent_data
+Retrieves recent data from a table with sorting and limits.
+
+**Arguments**:
+- `table_name` (required): Table to query
+- `limit` (optional): Number of rows (default: 10)
+
+**Use Case**: Get a quick sample of the most recent data in a table.
+
+### 4. search_columns
+Searches for columns across all tables by name pattern.
+
+**Arguments**:
+- `column_pattern` (required): Search pattern for column names
+- `limit` (optional): Maximum results (default: 50)
+
+**Use Case**: Find all columns matching a pattern across the entire database.
 
 ## Blocked Operations
 
@@ -349,38 +579,143 @@ The MCP server blocks the following operations to maintain read-only access:
 postgres-mcp/
 ├── src/
 │   ├── PostgresMcp/              # Main application
-│   │   ├── Controllers/          # MCP API controllers
+│   │   ├── Controllers/          # MCP API controllers (legacy + v2.0)
 │   │   ├── Models/               # Data models
+│   │   │   ├── McpModels/        # MCP protocol models (JSON-RPC 2.0)
+│   │   │   ├── DatabaseModels/   # Database schema models
+│   │   │   └── ResourceModels/   # Resource definitions
 │   │   ├── Services/             # Business logic
+│   │   │   ├── DatabaseService/  # Database operations
+│   │   │   ├── QueryValidationService/  # SQL validation
+│   │   │   ├── ResourcesProvider/       # Resource listing/reading
+│   │   │   ├── PromptsProvider/        # Prompt templates
+│   │   │   └── NotificationService/    # SSE notifications
 │   │   ├── Program.cs            # App entry point
-│   │   └── appsettings.json      # Configuration
-│   └── PostgresMcp.Tests/        # Unit tests
+│   │   ├── appsettings.json      # Configuration
+│   │   └── appsettings.Development.json
+│   └── PostgresMcp.Tests/        # xUnit test suite
 ├── docker-init/                  # Database init scripts
 ├── Dockerfile                    # Docker build
 ├── docker-compose.yml            # Docker orchestration
+├── sample-requests.md            # Example API calls
+├── INTEGRATION_GUIDE.md           # Integration instructions
 └── README.md                     # This file
 ```
 
 ### Technology Stack
 
-- **.NET 9** - Latest .NET framework
-- **ASP.NET Core** - Web API framework
-- **Npgsql** - PostgreSQL data provider
+- **.NET 10** - Latest .NET framework
+- **ASP.NET Core** - Web API framework with full MCP protocol support
+- **Npgsql 8.0+** - PostgreSQL data provider
 - **Serilog** - Structured logging
-- **Scalar** - OpenAPI documentation
+- **Scalar** - OpenAPI documentation UI
 - **AspNetCoreRateLimit** - Rate limiting
+- **JSON-RPC 2.0** - Standard MCP protocol compliance
 
 ## Comparison with postgres-nl-mcp
 
 | Feature | postgres-mcp | postgres-nl-mcp |
 |---------|--------------|-----------------|
 | **Purpose** | Direct read-only database access | AI-powered natural language queries |
+| **MCP Protocol Version** | ✅ v2024-11-05 (JSON-RPC 2.0) | ✅ v2024-11-05 (JSON-RPC 2.0) |
+| **Resources Support** | ✅ Yes (database resources) | ✅ Yes (enhanced) |
+| **Prompts Support** | ✅ 4 built-in templates | ✅ 6 advanced templates |
+| **SSE Notifications** | ✅ Yes | ✅ Yes |
 | **AI/LLM** | ❌ None | ✅ Multiple providers (OpenAI, Claude, Gemini, Ollama, LM Studio) |
 | **Query Generation** | ❌ Manual SQL only | ✅ Natural language to SQL |
 | **Query Optimization** | ❌ None | ✅ AI-powered optimization |
 | **Complexity** | Simple, lightweight | Advanced, feature-rich |
 | **Use Case** | Agents with SQL knowledge | Agents with natural language only |
 | **Dependencies** | Minimal | LLM API keys required |
+
+## Advanced Features
+
+### Real-Time Notifications (SSE)
+
+The server sends real-time notifications for important events:
+
+```bash
+# Connect to the SSE endpoint
+curl http://localhost:5000/mcp/v1/sse
+```
+
+**Events emitted**:
+- `resources/updated` - When database resources change
+- `tools/list_changed` - When available tools change
+- `prompts/list_changed` - When prompts are updated
+- `progress` - For long-running operations
+
+### Resource Discovery
+
+Clients can discover available database resources:
+
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "resources/list",
+  "params": {}
+}
+```
+
+**Response includes**:
+- Available PostgreSQL databases
+- Connection information
+- Schema details
+- Table metadata
+
+### Server Discovery (`.well-known/mcp.json`)
+
+Standard MCP clients can auto-discover your server:
+
+```bash
+curl http://localhost:5000/.well-known/mcp.json
+```
+
+The response advertises:
+- Protocol version (2024-11-05)
+- Supported capabilities (tools, resources, prompts)
+- Server information and version
+
+### Batch Requests
+
+Submit multiple requests in a single batch:
+
+```bash
+POST /mcp/v1/messages
+Content-Type: application/json
+
+[
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  },
+  {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "resources/list",
+    "params": {}
+  }
+]
+```
+
+### Error Handling
+
+The server returns proper JSON-RPC 2.0 error codes:
+
+| Code | Meaning |
+|------|---------|
+| -32700 | Parse error |
+| -32600 | Invalid request |
+| -32601 | Method not found |
+| -32602 | Invalid parameters |
+| -32603 | Internal error |
+| -32000 to -32099 | Server errors |
 
 ## Deployment
 
@@ -426,23 +761,42 @@ spec:
 
 ### Common Issues
 
-1. **Connection failures**:
+1. **MCP Protocol errors** (JSON-RPC 2.0):
+   - Verify you're sending valid JSON-RPC 2.0 requests
+   - Check that `jsonrpc: "2.0"` is included
+   - Ensure the `id` field is present for request tracking
+   - Check the method name (e.g., `tools/list`, `tools/call`)
+   - Review error codes in the error response
+
+2. **Connection failures**:
    - Verify connection string format
    - Check if PostgreSQL is running
    - Ensure network connectivity
    - Verify credentials
+   - Test with: `curl http://localhost:5000/health`
 
-2. **Query validation errors**:
+3. **Query validation errors**:
    - Ensure query starts with SELECT or WITH
    - Remove any data modification keywords
    - Remove any schema modification keywords
    - Check for blocked functions
 
-3. **Rate limiting**:
+4. **SSE connection issues**:
+   - Verify SSE endpoint: `curl http://localhost:5000/mcp/v1/sse`
+   - Check that your client supports Server-Sent Events
+   - Ensure no firewall is blocking connections
+   - Look for connection timeout issues
+
+5. **Server discovery not working**:
+   - Test endpoint: `curl http://localhost:5000/.well-known/mcp.json`
+   - Verify server is running and healthy
+   - Check that CORS is not blocking requests (if cross-origin)
+
+6. **Rate limiting**:
    - Disable in development: `Security__EnableRateLimiting=false`
    - Adjust limit: `Security__RequestsPerMinute=120`
 
-4. **Port conflicts**:
+7. **Port conflicts**:
    - MCP Server uses port 5000
    - PostgreSQL uses port 5432
    - pgAdmin uses port 8080
