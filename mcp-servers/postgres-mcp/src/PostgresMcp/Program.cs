@@ -24,7 +24,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
 
         // Register MCP protocol services
         builder.Services.AddSingleton<ISseNotificationService, SseNotificationService>();
-        builder.Services.AddSingleton<IResourceProvider, ResourceProvider>();
+        builder.Services.AddScoped<IResourceProvider, ResourceProvider>();
         builder.Services.AddSingleton<IPromptProvider, PromptProvider>();
 
         // Configure rate limiting
