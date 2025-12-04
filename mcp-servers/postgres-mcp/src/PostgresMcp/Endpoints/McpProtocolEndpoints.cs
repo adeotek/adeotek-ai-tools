@@ -10,8 +10,7 @@ namespace PostgresMcp.Endpoints;
 /// </summary>
 public static class McpProtocolEndpoints
 {
-    private static bool _isInitialized = false;
-    private static readonly JsonSerializerOptions _jsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false
@@ -87,7 +86,7 @@ public static class McpProtocolEndpoints
             // Check if it's a batch request (starts with '[')
             if (requestBody.TrimStart().StartsWith('['))
             {
-                var batchRequests = JsonSerializer.Deserialize<List<JsonRpcRequest>>(requestBody, _jsonOptions);
+                var batchRequests = JsonSerializer.Deserialize<List<JsonRpcRequest>>(requestBody, JsonOptions);
                 if (batchRequests == null || batchRequests.Count == 0)
                 {
                     return Results.Json(CreateErrorResponse(null, JsonRpcErrorCodes.InvalidRequest,
@@ -106,7 +105,7 @@ public static class McpProtocolEndpoints
             }
             else
             {
-                var request = JsonSerializer.Deserialize<JsonRpcRequest>(requestBody, _jsonOptions);
+                var request = JsonSerializer.Deserialize<JsonRpcRequest>(requestBody, JsonOptions);
                 if (request == null)
                 {
                     return Results.Json(CreateErrorResponse(null, JsonRpcErrorCodes.ParseError,
@@ -202,8 +201,6 @@ public static class McpProtocolEndpoints
 
         logger.LogInformation("MCP Server initializing with protocol version: {Version}",
             initializeParams?.ProtocolVersion ?? "unknown");
-
-        _isInitialized = true;
 
         var result = new InitializeResult
         {
@@ -639,7 +636,7 @@ public static class McpProtocolEndpoints
 
         if (paramsObj is JsonElement jsonElement)
         {
-            return JsonSerializer.Deserialize<T>(jsonElement.GetRawText(), _jsonOptions);
+            return JsonSerializer.Deserialize<T>(jsonElement.GetRawText(), JsonOptions);
         }
 
         if (paramsObj is T typedParams)
@@ -647,8 +644,8 @@ public static class McpProtocolEndpoints
             return typedParams;
         }
 
-        var json = JsonSerializer.Serialize(paramsObj, _jsonOptions);
-        return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+        var json = JsonSerializer.Serialize(paramsObj, JsonOptions);
+        return JsonSerializer.Deserialize<T>(json, JsonOptions);
     }
 
     private static T GetRequiredArgument<T>(Dictionary<string, object?>? arguments, string key)

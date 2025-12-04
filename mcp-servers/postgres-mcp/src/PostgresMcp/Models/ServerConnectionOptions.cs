@@ -36,4 +36,9 @@ public class ServerConnectionOptions
     /// </summary>
     [JsonPropertyName("useSsl")]
     public bool UseSsl { get; set; } = true;
+
+    /// <summary>
+    /// Whether the configuration has been initialized.
+    /// </summary>
+    public bool IsConfigured { get; set; }
 }

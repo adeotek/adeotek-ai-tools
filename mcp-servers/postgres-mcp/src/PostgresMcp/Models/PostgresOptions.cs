@@ -40,35 +40,3 @@ public class PostgresOptions
     /// </summary>
     public int MinPoolSize { get; set; }
 }
-
-/// <summary>
-/// PostgreSQL server connection parameters.
-/// These parameters are configured at MCP initialization and used to build connection strings.
-/// </summary>
-public class ServerConnectionOptions
-{
-    /// <summary>
-    /// PostgreSQL server host/address.
-    /// </summary>
-    public string Host { get; set; } = "localhost";
-
-    /// <summary>
-    /// PostgreSQL server port.
-    /// </summary>
-    public int Port { get; set; } = 5432;
-
-    /// <summary>
-    /// PostgreSQL username.
-    /// </summary>
-    public required string Username { get; set; }
-
-    /// <summary>
-    /// PostgreSQL password.
-    /// </summary>
-    public required string Password { get; set; }
-
-    /// <summary>
-    /// Whether the configuration has been initialized.
-    /// </summary>
-    public bool IsConfigured { get; set; }
-}

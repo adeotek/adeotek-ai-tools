@@ -87,7 +87,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
             options
                 .WithTitle("PostgreSQL MCP Server")
                 .WithTheme(ScalarTheme.Default)
-                .WithDefaultHttpClient(ScalarTarget.CSharp);
+                .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.NetHttp);
         });
 
         // Health checks endpoint
