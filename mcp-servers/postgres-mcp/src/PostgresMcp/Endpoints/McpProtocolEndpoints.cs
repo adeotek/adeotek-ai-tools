@@ -16,13 +16,11 @@ public static class McpProtocolEndpoints
         WriteIndented = false
     };
 
-    extension(IEndpointRouteBuilder endpoints)
+    /// <summary>
+    /// Maps all MCP protocol endpoints.
+    /// </summary>
+    public static IEndpointRouteBuilder MapMcpProtocolEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        /// <summary>
-        /// Maps all MCP protocol endpoints.
-        /// </summary>
-        public IEndpointRouteBuilder MapMcpProtocolEndpoints()
-        {
             // Root endpoint with server information
             endpoints.MapGet("/", GetServerInfo);
 
@@ -62,7 +60,6 @@ public static class McpProtocolEndpoints
                 .WithName("LegacyCallTool");
 
             return endpoints;
-        }
     }
 
     #region JSON-RPC Handler
