@@ -85,3 +85,6 @@ pgadmin-data/
 
 # User secrets
 **/appsettings.*.local.json
+
+# Test VS Code configuration files
+.vscode/mcp.json
