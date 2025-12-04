@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using PostgresMcp.Models;
 
 namespace PostgresMcp.Services;
@@ -11,19 +10,19 @@ namespace PostgresMcp.Services;
 public class ResourceProvider : IResourceProvider
 {
     private readonly IConnectionBuilderService _connectionBuilder;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IDatabaseSchemaService _schemaService;
     private readonly ISseNotificationService _sseService;
     private readonly ILogger<ResourceProvider> _logger;
     private readonly ConcurrentDictionary<string, DateTime> _subscriptions = new();
 
     public ResourceProvider(
         IConnectionBuilderService connectionBuilder,
-        IServiceScopeFactory serviceScopeFactory,
+        IDatabaseSchemaService schemaService,
         ISseNotificationService sseService,
         ILogger<ResourceProvider> logger)
     {
         _connectionBuilder = connectionBuilder;
-        _serviceScopeFactory = serviceScopeFactory;
+        _schemaService = schemaService;
         _sseService = sseService;
         _logger = logger;
     }
@@ -179,11 +178,7 @@ public class ResourceProvider : IResourceProvider
     private async Task<ReadResourceResult> GetSchemaResourceAsync(string uri, string database)
     {
         var connectionString = _connectionBuilder.BuildConnectionString(database);
-
-        // Create a scope to resolve the scoped IDatabaseSchemaService
-        using var scope = _serviceScopeFactory.CreateScope();
-        var schemaService = scope.ServiceProvider.GetRequiredService<IDatabaseSchemaService>();
-        var schema = await schemaService.ScanDatabaseSchemaAsync(connectionString);
+        var schema = await _schemaService.ScanDatabaseSchemaAsync(connectionString);
 
         return new ReadResourceResult
         {
