@@ -33,7 +33,18 @@ And update package versions:
 
 **Status**: ✅ FIXED - Changed from `extension(IEndpointRouteBuilder endpoints)` to proper C# extension method syntax: `public static IEndpointRouteBuilder MapMcpProtocolEndpoints(this IEndpointRouteBuilder endpoints)`
 
-### 3. Missing NuGet Packages
+### 3. Dependency Injection Lifetime Mismatch (FIXED)
+
+**Issue**: `ResourceProvider` (Singleton) was trying to inject `IDatabaseSchemaService` (Scoped), which violates DI lifetime rules.
+
+**Error**:
+```
+System.InvalidOperationException: Cannot consume scoped service 'PostgresMcp.Services.IDatabaseSchemaService' from singleton 'PostgresMcp.Services.IResourceProvider'.
+```
+
+**Status**: ✅ FIXED - Changed `ResourceProvider` to use `IServiceScopeFactory` to create a scope when needed, then resolve `IDatabaseSchemaService` from that scope.
+
+### 4. Missing NuGet Packages
 
 **Issue**: Some package versions may not exist for .NET 10.
 
@@ -46,7 +57,7 @@ dotnet list package --outdated
 
 If packages fail to restore, downgrade to .NET 9 compatible versions.
 
-### 4. Build Commands
+### 5. Build Commands
 
 **Clean build**:
 ```bash
@@ -68,7 +79,7 @@ docker-compose build --no-cache
 docker-compose up -d
 ```
 
-### 5. Common Compilation Errors
+### 6. Common Compilation Errors
 
 **Error: "The type or namespace name 'JsonRpcBatchResponse' could not be found"**
 - Status: Should not occur - type is defined in JsonRpcModels.cs
@@ -79,7 +90,7 @@ docker-compose up -d
 **Error: "'IEndpointRouteBuilder' does not contain a definition for 'MapMcpProtocolEndpoints'"**
 - Status: Fixed - using proper extension method syntax
 
-### 6. Runtime Errors
+### 7. Runtime Errors
 
 **Error: "Unable to connect to PostgreSQL"**
 - Solution: Initialize the server first:
@@ -93,7 +104,7 @@ curl -X POST http://localhost:5000/mcp/initialize \
 - Solution: Ensure proper headers are set (done automatically by the server)
 - Check firewall settings for port 5000
 
-### 7. Docker Build Issues
+### 8. Docker Build Issues
 
 **Error: Docker build fails**
 ```bash
