@@ -1,7 +1,6 @@
 ---
 services:
 
-  # PostgreSQL MCP Server (Read-Only)
   postgres-mcp:
     build:
       context: .
@@ -17,8 +16,8 @@ services:
       # ASP.NET Core Configuration
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:5000}
-      # PostgreSQL Connection
-      - Postgres__DefaultConnectionString=${Postgres__DefaultConnectionString:-Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=password}
+      # PostgreSQL Connection - No longer configured via environment
+      # Connection parameters are now configured via POST /mcp/initialize endpoint
       # Security Settings
       - Security__EnableRateLimiting=${Security__EnableRateLimiting:-false}
       - Security__RequestsPerMinute=${Security__RequestsPerMinute:-60}
@@ -29,4 +28,14 @@ services:
       - Logging__LogLevel__Microsoft__AspNetCore=${Logging__LogLevel__Microsoft__AspNetCore:-Warning}
       - Logging__LogQueries=${Logging__LogQueries:-true}
       - Logging__LogResults=${Logging__LogResults:-false}
-    network_mode: "bridge"
+    network_mode: bridge
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp

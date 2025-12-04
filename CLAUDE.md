@@ -1,15 +1,22 @@
 # Adeotek AI Tools - Context for Claude
 
-This document provides comprehensive context about the Adeotek AI Tools repository for Claude (both CLI and Web) interactions. It describes the repository structure, purpose, development guidelines, and how to work with the various AI tools, agents, and MCP servers contained within.
+This document provides high-level context about the Adeotek AI Tools repository for Claude (both CLI and Web) interactions. It describes the repository structure, general development guidelines, and architectural patterns shared across all projects.
+
+**For project-specific details, see the CLAUDE.md file in each project directory:**
+- **HTTP Agent**: `/agents/http-agent/CLAUDE.md`
+- **PostgreSQL MCP Server** (read-only): `/mcp-servers/postgres-mcp/CLAUDE.md`
+- **PostgreSQL Natural Language MCP**: `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+
+> **📖 Important for Claude**: When working on a specific project task, **ALWAYS read that project's CLAUDE.md file FIRST** using the Read tool before proceeding. This ensures you have the detailed context, architecture patterns, and implementation guidelines specific to that project. See the "Working with Claude: Important Workflow" section below for details.
 
 ## Repository Overview
 
 **Purpose**: A collection of AI-related tools, intelligent agents, and Model Context Protocol (MCP) servers designed to enhance productivity and enable AI-powered workflows.
 
 **Organization**: The repository is structured to accommodate multiple types of AI tools:
-- **MCP Servers**: Protocol-compliant servers for database operations and other services
-- **Agents**: Intelligent agents that use LLMs to accomplish specific tasks
-- **Tools**: Utility tools and helpers for AI-powered workflows
+- **MCP Servers** (`/mcp-servers/`): Protocol-compliant servers for database operations and other services
+- **Agents** (`/agents/`): Intelligent agents that use LLMs to accomplish specific tasks
+- **Tools** (`/tools/`): Utility tools and helpers for AI-powered workflows (planned)
 
 ## Project Structure
 
@@ -41,33 +48,11 @@ adeotek-ai-tools/
 
 **Technology Stack**: Go 1.24.7+, Gin web framework, Multiple LLM providers
 
-**Purpose**: An AI-powered HTTP request tool that acts as an intelligent `curl` alternative. It makes HTTP/HTTPS requests and provides natural language analysis of the results.
+**Purpose**: An AI-powered HTTP request tool that acts as an intelligent `curl` alternative with natural language analysis.
 
-**Key Features**:
-- Natural language interface for HTTP requests
-- Web UI for easy interaction
-- Support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
-- AI-powered response analysis using multiple LLM providers
-- **DNS diagnostics**: Automatic hostname resolution, IP lookup, and timing (nslookup-like)
-- **SSL certificate inspection**: Certificate validation, expiration, CA details, and algorithm information
-- **Configurable SSL verification**: Per-request SSL verification toggle for self-signed certificates
-- JSON formatting, status code interpretation, performance analysis
-- Built-in security: SSRF protection, configurable SSL verification, private IP blocking
-- Docker deployment ready
+**Key Features**: Natural language interface, Web UI, DNS diagnostics, SSL certificate inspection, multiple LLM providers (OpenAI, Anthropic, Gemini, Ollama, LM Studio), SSRF protection.
 
-**Supported LLM Providers**:
-- **OpenAI**: GPT-4, GPT-4o, GPT-3.5-turbo
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Sonnet
-- **Google Gemini**: Gemini 1.5 Pro, Gemini 1.5 Flash
-- **Ollama**: Local models (Llama 2, Llama 3, Mistral, CodeLlama, etc.)
-- **LM Studio**: Any locally loaded model via OpenAI-compatible API
-
-**Configuration**:
-- Primary: Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `LLM_PROVIDER`, etc.)
-- Alternative: YAML config file (`config/config.yaml`)
-- See `agents/http-agent/README.md` for detailed configuration options for each provider
-
-**Running Locally**:
+**Quick Start**:
 ```bash
 cd agents/http-agent
 export OPENAI_API_KEY=your-key
@@ -75,85 +60,44 @@ go run cmd/server/main.go
 # Open http://localhost:8080
 ```
 
-**Running with Docker**:
+**📄 For detailed documentation**: See `/agents/http-agent/CLAUDE.md`
+
+### 2. PostgreSQL MCP Server (`/mcp-servers/postgres-mcp`)
+
+**Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Serilog, Scalar
+
+**Purpose**: A **read-only** Model Context Protocol server for PostgreSQL providing secure, direct SQL access without AI/LLM dependencies.
+
+**Key Features**: Two MCP tools (database structure scanning, read-only queries), comprehensive query validation, no AI required, lightweight and fast.
+
+**Quick Start**:
 ```bash
-cd agents/http-agent
-cp .env.example .env
-# Edit .env with your API key
+cd mcp-servers/postgres-mcp
 docker-compose up -d
+# Open http://localhost:5000/scalar/v1
 ```
 
-**API Endpoints**:
-- `GET /` - Web UI
-- `POST /api/request` - Execute HTTP request with AI analysis
-- `GET /health` - Health check
+**📄 For detailed documentation**: See `/mcp-servers/postgres-mcp/CLAUDE.md`
 
-**Example Use Cases**:
-- "Is this API endpoint accessible?"
-- "What's the response code and what does it mean?"
-- "Show me the JSON response in a readable format"
-- "Is this API response time acceptable?"
-- "What are the security headers in this response?"
-
-### 2. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
+### 3. PostgreSQL Natural Language MCP Server (`/mcp-servers/postgres-nl-mcp`)
 
 **Status**: ✅ Production Ready
 
 **Technology Stack**: .NET 9, ASP.NET Core, Npgsql, Semantic Kernel, Scalar, Serilog
 
-**Purpose**: A production-ready Model Context Protocol server for PostgreSQL database operations with AI-powered query generation and natural language understanding.
+**Purpose**: A production-ready Model Context Protocol server for PostgreSQL with AI-powered query generation.
 
-**Key Features**:
-- **Three MCP Tools**:
-  1. `scan_database_structure` - Comprehensive database schema analysis with AI-powered Q&A
-  2. `query_database_data` - Natural language to SQL with automatic relationship detection
-  3. `advanced_sql_query` - AI-powered SQL generation with validation and optimization
-- **AI-Powered**: Integrates with OpenAI or Azure OpenAI via Semantic Kernel
-- **Security First**: SQL injection prevention, rate limiting, read-only by default, query timeouts
-- **Production Ready**: Comprehensive testing (xUnit), structured logging (Serilog), error handling
-- **API Documentation**: Beautiful Scalar UI for interactive API exploration
-- **Docker Ready**: Complete docker-compose setup with PostgreSQL and pgAdmin
-- **MCP Compliant**: Full JSON-RPC 2.0 support for Model Context Protocol
+**Key Features**: Three MCP tools (schema analysis, natural language queries, advanced SQL generation), multiple AI providers, security-first design, comprehensive testing.
 
-**Configuration**:
-- Environment variables for all settings (connection strings, API keys, security)
-- Support for both OpenAI and Azure OpenAI
-- Configurable security limits (max rows, query timeout, rate limiting)
-- SSL/TLS support for database connections
-
-**Running Locally**:
+**Quick Start**:
 ```bash
 cd mcp-servers/postgres-nl-mcp
-# Set OpenAI API key
 export Ai__ApiKey=your-openai-key
-# Start with Docker Compose (includes PostgreSQL + pgAdmin)
 docker-compose up -d
-# Access API documentation at http://localhost:5000/scalar/v1
-```
-
-**Running for Development**:
-```bash
-cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
-dotnet user-secrets set "Ai:ApiKey" "your-openai-key"
-dotnet restore
-dotnet run
 # Open http://localhost:5000/scalar/v1
 ```
 
-**API Endpoints**:
-- `GET /mcp/tools` - List available MCP tools
-- `POST /mcp/tools/call` - Execute an MCP tool
-- `POST /mcp/jsonrpc` - JSON-RPC 2.0 endpoint
-- `GET /health` - Health check
-- `GET /scalar/v1` - API documentation UI
-
-**Example Use Cases**:
-- "What tables have foreign keys to the customers table?"
-- "Show me all customers who made orders in the last 30 days"
-- "Calculate average order value by product category for customers with more than 3 orders"
-- Automated database documentation generation
-- Natural language data exploration
-- AI-assisted SQL query writing
+**📄 For detailed documentation**: See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 
 ## Development Guidelines
 
@@ -164,17 +108,21 @@ dotnet run
    mkdir -p agents/new-agent/{cmd/server,internal/{agent,handlers,models},config}
    ```
 
-2. **Initialize Go module** (for Go agents):
+2. **Initialize module** (language-specific):
    ```bash
+   # For Go agents
    cd agents/new-agent
    go mod init github.com/adeotek/adeotek-ai-tools/agents/new-agent
+
+   # For .NET agents
+   dotnet new webapi -n NewAgent
    ```
 
 3. **Implement core functionality**:
-   - Define models in `internal/models/`
-   - Implement agent logic in `internal/agent/`
-   - Create handlers in `internal/handlers/`
-   - Set up main entry point in `cmd/server/`
+   - Define models for data structures
+   - Implement agent logic and AI integration
+   - Create handlers for HTTP endpoints and UI
+   - Set up main entry point
 
 4. **Add Docker support**:
    - Create `Dockerfile` with multi-stage build
@@ -182,9 +130,12 @@ dotnet run
    - Add `.env.example` with configuration template
 
 5. **Document thoroughly**:
-   - Create comprehensive `README.md` in agent directory
-   - Update this `CLAUDE.md` with agent details
+   - Create comprehensive `README.md` in agent directory (user-facing)
+   - Create `CLAUDE.md` in agent directory (detailed context for Claude - **REQUIRED**)
+   - Update this root `CLAUDE.md` with a brief project overview and reference to the project's CLAUDE.md
    - Update root `README.md` with quick reference
+
+   **Note**: The project-specific `CLAUDE.md` is critical for Claude to work effectively on your project. Include architecture, configuration, development workflow, troubleshooting, and code quality standards.
 
 ### Adding a New MCP Server
 
@@ -200,9 +151,14 @@ dotnet run
    - Error handling and status codes
 
 3. **Add documentation**:
+   - Create comprehensive `README.md` (user-facing)
+   - Create `CLAUDE.md` (detailed context for Claude - **REQUIRED**)
+   - Update this root `CLAUDE.md` with a brief overview and reference to the project's CLAUDE.md
    - Tool descriptions and usage examples
    - Configuration instructions
    - Docker deployment guide
+
+   **Note**: The project-specific `CLAUDE.md` is critical for Claude to work effectively on your project. Include MCP tools documentation, configuration, security features, testing, and troubleshooting.
 
 ### Code Quality Standards
 
@@ -246,114 +202,34 @@ dotnet run
 - ✅ Never log sensitive information
 - ✅ Use non-root users in Docker containers
 
-## Common Commands
+## Common Development Commands
 
-### HTTP Agent
+For project-specific commands, see the CLAUDE.md file in each project directory. General commands:
 
+**Go Projects** (e.g., HTTP Agent):
 ```bash
-# Local development
-cd agents/http-agent
-go run cmd/server/main.go
-
-# Build binary
-go build -o http-agent ./cmd/server/main.go
-
-# Run tests
-go test ./...
-
-# Format code
-go fmt ./...
-
-# Docker deployment
-docker-compose up -d
-docker-compose logs -f
-docker-compose down
-
-# Environment variables - OpenAI
-export OPENAI_API_KEY=sk-...
-export LLM_PROVIDER=openai
-export LLM_MODEL=gpt-4-turbo-preview
-export PORT=8080
-
-# Environment variables - Anthropic Claude
-export ANTHROPIC_API_KEY=sk-ant-...
-export LLM_PROVIDER=anthropic
-export LLM_MODEL=claude-3-5-sonnet-20241022
-
-# Environment variables - Google Gemini
-export GEMINI_API_KEY=AIza...
-export LLM_PROVIDER=gemini
-export LLM_MODEL=gemini-1.5-pro
-
-# Environment variables - Ollama (local)
-export LLM_PROVIDER=ollama
-export LLM_MODEL=llama2
-export HTTP_AGENT_LLM_BASE_URL=http://localhost:11434
-# Note: Make sure Ollama is running: ollama serve
-
-# Environment variables - LM Studio (local)
-export LLM_PROVIDER=lmstudio
-export LLM_MODEL=local-model
-export HTTP_AGENT_LLM_BASE_URL=http://localhost:1234
+go mod download      # Install dependencies
+go run cmd/server/main.go  # Run locally
+go build             # Build binary
+go test ./...        # Run tests
+go fmt ./...         # Format code
 ```
 
-### PostgreSQL Natural Language MCP Server
-
+**.NET Projects** (e.g., PostgreSQL MCP):
 ```bash
-# Local development
-cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
-dotnet restore
-dotnet build
-dotnet run
+dotnet restore       # Install dependencies
+dotnet run           # Run locally
+dotnet build         # Build project
+dotnet test          # Run tests
+dotnet format        # Format code
+```
 
-# Run tests
-cd mcp-servers/postgres-nl-mcp
-dotnet test
-
-# Format code
-dotnet format
-
-# Docker deployment
-cd mcp-servers/postgres-nl-mcp
-docker-compose up -d
-docker-compose logs -f postgres-nl-mcp
-docker-compose down
-
-# Environment variables - OpenAI
-export Ai__ApiKey=sk-...
-export Ai__Model=gpt-4
-export Ai__Enabled=true
-export ASPNETCORE_ENVIRONMENT=Development
-
-# Environment variables - Azure OpenAI
-export Ai__ApiKey=your-azure-key
-export Ai__AzureEndpoint=https://your-resource.openai.azure.com
-export Ai__AzureDeploymentName=gpt-4
-export Ai__Model=gpt-4
-
-# Database connection
-export Postgres__DefaultConnectionString="Host=localhost;Port=5432;Database=testdb;Username=postgres;Password=yourpass"
-
-# Security settings
-export Security__EnableRateLimiting=false
-export Security__MaxRowsPerQuery=1000
-export Security__AllowDataModification=false
-
-# User secrets (recommended for development)
-cd mcp-servers/postgres-nl-mcp/src/PostgresNaturalLanguageMcp
-dotnet user-secrets init
-dotnet user-secrets set "Ai:ApiKey" "sk-..."
-dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;..."
-
-# Access API documentation
-# Open http://localhost:5000/scalar/v1
-
-# Test API endpoints
-curl http://localhost:5000/health
-curl http://localhost:5000/mcp/tools
-curl -X POST http://localhost:5000/mcp/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{"name":"scan_database_structure","arguments":{"connectionString":"Host=postgres;Database=testdb;...","question":"What tables exist?"}}'
+**Docker** (All Projects):
+```bash
+docker-compose up -d       # Start services
+docker-compose logs -f     # View logs
+docker-compose down        # Stop services
+docker-compose build --no-cache  # Rebuild
 ```
 
 ## Architecture Patterns
@@ -433,71 +309,14 @@ Use secure secret management:
 
 ## Testing
 
-### HTTP Agent
+All projects include comprehensive test suites. For project-specific testing instructions, see each project's CLAUDE.md file.
 
-```bash
-# Test with example request
-curl -X POST http://localhost:8080/api/request \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://api.github.com/users/github",
-    "method": "GET",
-    "prompt": "Tell me about this user"
-  }'
-
-# Test health endpoint
-curl http://localhost:8080/health
-```
-
-### PostgreSQL Natural Language MCP Server
-
-```bash
-# Test health endpoint
-curl http://localhost:5000/health
-
-# List available MCP tools
-curl http://localhost:5000/mcp/tools
-
-# Test scan_database_structure tool
-curl -X POST http://localhost:5000/mcp/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "scan_database_structure",
-    "arguments": {
-      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
-      "question": "What tables exist in the database?"
-    }
-  }'
-
-# Test query_database_data tool
-curl -X POST http://localhost:5000/mcp/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "query_database_data",
-    "arguments": {
-      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
-      "query": "Show me all customers with their order counts"
-    }
-  }'
-
-# Test advanced_sql_query tool
-curl -X POST http://localhost:5000/mcp/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "advanced_sql_query",
-    "arguments": {
-      "connectionString": "Host=postgres;Port=5432;Database=testdb;Username=postgres;Password=postgres123",
-      "naturalLanguageQuery": "Calculate the average order value by product category"
-    }
-  }'
-
-# Run unit tests
-cd mcp-servers/postgres-nl-mcp
-dotnet test --verbosity normal
-
-# Run tests with coverage
-dotnet test /p:CollectCoverage=true /p:CoverageReportFormat=opencover
-```
+**General Testing Approach**:
+- Unit tests for business logic
+- Integration tests for external dependencies (databases, APIs)
+- Mock external services in unit tests
+- Aim for reasonable test coverage (>70%)
+- Test error cases and edge conditions
 
 ## Deployment
 
@@ -542,54 +361,32 @@ spec:
 
 ## Troubleshooting
 
-### Common Issues
+For project-specific troubleshooting, see each project's CLAUDE.md file.
 
-**HTTP Agent**:
-1. **"API key required" errors**: Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
-2. **Port conflicts**: Change `PORT` environment variable
-3. **Docker build fails**: Clear cache with `docker-compose build --no-cache`
-4. **Private IP blocked**: Set `BLOCK_PRIVATE_IPS=false` for local testing
-5. **Request timeout**: Increase `HTTP_TIMEOUT` value
+### General Troubleshooting Steps
 
-**PostgreSQL Natural Language MCP Server**:
-1. **AI features not working**:
-   - Check if `Ai__ApiKey` is set
-   - Verify `Ai__Enabled=true` in configuration
-   - Check logs for API errors
-   - Ensure network access to OpenAI API
-2. **Database connection fails**:
-   - Verify connection string format: `Host=...;Port=5432;Database=...;Username=...;Password=...`
-   - Check if PostgreSQL is running
-   - Ensure network connectivity (especially in Docker)
-   - Verify credentials are correct
-3. **Rate limiting issues**:
-   - Check `Security__RequestsPerMinute` setting
-   - Disable rate limiting in development: `Security__EnableRateLimiting=false`
-   - Restart application to clear rate limit cache
-4. **Query timeout**:
-   - Increase `Security__MaxQueryExecutionSeconds` value
-   - Optimize slow queries
-   - Check database performance
-5. **Port conflicts**:
-   - PostgreSQL MCP uses port 5000 (API) and 5001 (HTTPS)
-   - pgAdmin uses port 8080
-   - PostgreSQL uses port 5432
-   - Change ports in docker-compose.yml if needed
+1. **Check logs**: Look at application logs for error messages
+2. **Verify configuration**: Ensure required environment variables are set
+3. **Test connectivity**: Verify network access to external services (databases, APIs)
+4. **Enable debug mode**: Increase log verbosity for more details
+5. **Clear caches**: Rebuild Docker images without cache if needed
+6. **Check ports**: Ensure ports aren't already in use
 
-### Debug Mode
+### Common Issues Across Projects
 
-Enable debug logging:
-```bash
-# For Go/Gin projects (HTTP Agent)
-export GIN_MODE=debug
-export LOG_LEVEL=debug
+**API Key Issues**:
+- Verify the correct environment variable is set for your provider
+- Ensure the key is valid and has proper permissions
+- Check if the key is being read correctly (don't log it!)
 
-# For .NET projects (PostgreSQL MCP)
-export ASPNETCORE_ENVIRONMENT=Development
-export Logging__LogLevel__Default=Debug
-export Logging__LogQueries=true
-export Logging__LogResults=true
-```
+**Docker Issues**:
+- Clear build cache: `docker-compose build --no-cache`
+- Remove old containers: `docker-compose down -v`
+- Check Docker logs: `docker-compose logs -f`
+
+**Port Conflicts**:
+- Check what's using the port: `lsof -i :PORT` (macOS/Linux) or `netstat -ano | findstr :PORT` (Windows)
+- Change the port in configuration or docker-compose.yml
 
 ## Contributing
 
@@ -640,17 +437,77 @@ When contributing to this repository:
 - **Anthropic API**: https://docs.anthropic.com
 - **MCP Specification**: https://modelcontextprotocol.io
 
+## Working with Claude: Important Workflow
+
+### Before Starting Any Task
+
+**CRITICAL: When working on a specific project, ALWAYS read that project's CLAUDE.md file FIRST before proceeding with the task.**
+
+**Workflow for Project-Specific Tasks**:
+1. **Identify the project**: Determine which project the task relates to (http-agent, postgres-mcp, postgres-nl-mcp)
+2. **Read the project's CLAUDE.md**: Use the Read tool to load the project-specific CLAUDE.md file
+3. **Understand the context**: Review the project's architecture, patterns, and guidelines
+4. **Execute the task**: Proceed with the task using the project-specific context
+
+**Examples**:
+- Task: "Fix a bug in the HTTP agent SSL verification"
+  → **First read** `/agents/http-agent/CLAUDE.md` to understand the SSL implementation
+  → Then proceed with debugging
+
+- Task: "Add a new validation rule to postgres-mcp"
+  → **First read** `/mcp-servers/postgres-mcp/CLAUDE.md` to understand query validation
+  → Then implement the new rule
+
+- Task: "Optimize a query in postgres-nl-mcp"
+  → **First read** `/mcp-servers/postgres-nl-mcp/CLAUDE.md` to understand AI integration
+  → Then optimize the query
+
+**Why This Matters**:
+- Each project has specific architecture patterns, coding standards, and security considerations
+- Project-specific CLAUDE.md files contain detailed implementation guidance not in this root file
+- Reading project context first prevents mistakes and ensures consistency
+- This root CLAUDE.md is for repository-wide guidance only
+
+### When to Use Which CLAUDE.md File
+
+**Use Root CLAUDE.md** (`/CLAUDE.md`) for:
+- Understanding overall repository structure
+- Learning how to add new agents or MCP servers
+- Repository-wide patterns and conventions
+- General development guidelines
+- Security best practices across all projects
+
+**Use Project-Specific CLAUDE.md** for:
+- Implementation details of a specific project
+- Project-specific architecture and design patterns
+- Configuration options and environment variables
+- API endpoints and tool implementations
+- Project-specific troubleshooting
+- Code quality standards for that project's language/framework
+
 ## Questions for Claude
 
-When interacting with Claude about this repository, you can ask:
+### Repository-Level Questions
+
+When asking about the overall repository structure and guidelines:
 
 - "How do I add a new agent to the repository?"
-- "What's the architecture of the HTTP agent?"
-- "How do I configure the LLM provider?"
-- "What security measures are in place?"
-- "How do I deploy an agent with Docker?"
-- "What are the code quality standards?"
-- "How do I test the HTTP agent?"
+- "How do I add a new MCP server to the repository?"
+- "What are the general code quality standards?"
+- "What security measures should I implement?"
+- "How do I deploy projects with Docker?"
 - "What's the roadmap for this repository?"
+- "What are the common architectural patterns?"
 
-Claude has full context from this document and can help with development, debugging, and architecture decisions for all projects in this repository.
+### Project-Specific Questions
+
+For questions about specific projects, Claude will automatically reference the appropriate project-specific CLAUDE.md file:
+
+- "How does the HTTP agent handle SSL certificates?" → See `/agents/http-agent/CLAUDE.md`
+- "What LLM providers does the HTTP agent support?" → See `/agents/http-agent/CLAUDE.md`
+- "How does query validation work in postgres-mcp?" → See `/mcp-servers/postgres-mcp/CLAUDE.md`
+- "What's the difference between postgres-mcp and postgres-nl-mcp?" → See `/mcp-servers/postgres-mcp/CLAUDE.md` or `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+- "How do I configure the PostgreSQL Natural Language MCP server?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+- "How does SQL injection prevention work in postgres-nl-mcp?" → See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
+
+Claude has full context from this document and can help with repository-wide development, architecture decisions, and will reference project-specific CLAUDE.md files for detailed project-specific questions.
