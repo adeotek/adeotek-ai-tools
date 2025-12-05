@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using System.Data.Common;
 using PostgresMcp.Models;
 
 namespace PostgresMcp.Services;
@@ -11,11 +12,13 @@ namespace PostgresMcp.Services;
 /// </summary>
 public class QueryService(
     ILogger<QueryService> logger,
+    IDbConnectionFactory connectionFactory,
     IOptions<PostgresOptions> postgresOptions,
     IOptions<SecurityOptions> securityOptions,
     IOptions<McpLoggingOptions> loggingOptions)
     : IQueryService
 {
+    private readonly IDbConnectionFactory _connectionFactory = connectionFactory;
     private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
     private readonly McpLoggingOptions _loggingOptions = loggingOptions.Value;
@@ -40,10 +43,11 @@ public class QueryService(
         var stopwatch = Stopwatch.StartNew();
         var result = new QueryResult();
 
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using var connection = _connectionFactory.CreateConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        await using var cmd = new NpgsqlCommand(sql, connection);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
         cmd.CommandTimeout = _securityOptions.MaxQueryExecutionSeconds;
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Npgsql;
+using System.Data.Common;
 using PostgresMcp.Models;
 
 namespace PostgresMcp.Services;
@@ -9,10 +10,12 @@ namespace PostgresMcp.Services;
 /// </summary>
 public class DatabaseSchemaService(
     ILogger<DatabaseSchemaService> logger,
+    IDbConnectionFactory connectionFactory,
     IOptions<PostgresOptions> postgresOptions,
     IOptions<SecurityOptions> securityOptions)
     : IDatabaseSchemaService
 {
+    private readonly IDbConnectionFactory _connectionFactory = connectionFactory;
     private readonly PostgresOptions _postgresOptions = postgresOptions.Value;
     private readonly SecurityOptions _securityOptions = securityOptions.Value;
 
@@ -23,7 +26,7 @@ public class DatabaseSchemaService(
     {
         logger.LogInformation("Scanning database schema");
 
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using var connection = _connectionFactory.CreateConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
         var schema = new DatabaseSchema
@@ -43,7 +46,7 @@ public class DatabaseSchemaService(
         return schema;
     }
 
-    private async Task<List<TableInfo>> GetTablesAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
+    private async Task<List<TableInfo>> GetTablesAsync(DbConnection connection, CancellationToken cancellationToken)
     {
         var tables = new List<TableInfo>();
 
@@ -58,7 +61,8 @@ public class DatabaseSchemaService(
             ORDER BY t.table_schema, t.table_name
             """;
 
-        await using var cmd = new NpgsqlCommand(tablesSql, connection);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = tablesSql;
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
         while (await reader.ReadAsync(cancellationToken))
@@ -95,7 +99,7 @@ public class DatabaseSchemaService(
     }
 
     private async Task<List<ColumnInfo>> GetColumnsAsync(
-        NpgsqlConnection connection,
+        DbConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
@@ -116,9 +120,19 @@ public class DatabaseSchemaService(
             ORDER BY c.ordinal_position
             """;
 
-        await using var cmd = new NpgsqlCommand(columnsSql, connection);
-        cmd.Parameters.AddWithValue(schemaName);
-        cmd.Parameters.AddWithValue(tableName);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = columnsSql;
+
+        var p1 = cmd.CreateParameter();
+        p1.ParameterName = "schemaName"; // Npgsql allows named parameters, but generic DbConnection acts differently. Standard SQL typically uses @ or $.
+        // Npgsql supports $1 positional. Let's see if we can use AddWithValue with standard DbCommand.
+        // DbCommand doesn't have AddWithValue.
+        p1.Value = schemaName;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.Value = tableName;
+        cmd.Parameters.Add(p2);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -140,7 +154,7 @@ public class DatabaseSchemaService(
     }
 
     private async Task<PrimaryKeyInfo?> GetPrimaryKeyAsync(
-        NpgsqlConnection connection,
+        DbConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
@@ -159,9 +173,16 @@ public class DatabaseSchemaService(
             ORDER BY kcu.ordinal_position
             """;
 
-        await using var cmd = new NpgsqlCommand(pkSql, connection);
-        cmd.Parameters.AddWithValue(schemaName);
-        cmd.Parameters.AddWithValue(tableName);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = pkSql;
+
+        var p1 = cmd.CreateParameter();
+        p1.Value = schemaName;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.Value = tableName;
+        cmd.Parameters.Add(p2);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -183,7 +204,7 @@ public class DatabaseSchemaService(
     }
 
     private async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(
-        NpgsqlConnection connection,
+        DbConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
@@ -209,9 +230,16 @@ public class DatabaseSchemaService(
               AND tc.table_name = $2
             """;
 
-        await using var cmd = new NpgsqlCommand(fkSql, connection);
-        cmd.Parameters.AddWithValue(schemaName);
-        cmd.Parameters.AddWithValue(tableName);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = fkSql;
+
+        var p1 = cmd.CreateParameter();
+        p1.Value = schemaName;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.Value = tableName;
+        cmd.Parameters.Add(p2);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -231,7 +259,7 @@ public class DatabaseSchemaService(
     }
 
     private async Task<List<IndexInfo>> GetIndexesAsync(
-        NpgsqlConnection connection,
+        DbConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
@@ -250,9 +278,16 @@ public class DatabaseSchemaService(
             WHERE i.schemaname = $1 AND i.tablename = $2
             """;
 
-        await using var cmd = new NpgsqlCommand(indexSql, connection);
-        cmd.Parameters.AddWithValue(schemaName);
-        cmd.Parameters.AddWithValue(tableName);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = indexSql;
+
+        var p1 = cmd.CreateParameter();
+        p1.Value = schemaName;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.Value = tableName;
+        cmd.Parameters.Add(p2);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -279,7 +314,7 @@ public class DatabaseSchemaService(
     }
 
     private async Task<long?> GetRowCountAsync(
-        NpgsqlConnection connection,
+        DbConnection connection,
         string schemaName,
         string tableName,
         CancellationToken cancellationToken)
@@ -287,8 +322,12 @@ public class DatabaseSchemaService(
         try
         {
             const string countSql = "SELECT reltuples::bigint FROM pg_class WHERE oid = $1::regclass";
-            await using var cmd = new NpgsqlCommand(countSql, connection);
-            cmd.Parameters.AddWithValue($"{schemaName}.{tableName}");
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = countSql;
+
+            var p1 = cmd.CreateParameter();
+            p1.Value = $"{schemaName}.{tableName}";
+            cmd.Parameters.Add(p1);
 
             var result = await cmd.ExecuteScalarAsync(cancellationToken);
             return result as long?;

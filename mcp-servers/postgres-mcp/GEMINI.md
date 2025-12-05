@@ -80,8 +80,9 @@ postgres-mcp/
 1. **Dependency Injection**: All services registered in ASP.NET Core DI container
 2. **Options Pattern**: Configuration via strongly-typed `IOptions<T>` for PostgresOptions, SecurityOptions, ServerConnectionOptions
 3. **Repository Pattern**: Database access abstraction (DatabaseService)
-4. **Validation Pattern**: Multi-layer query validation for security (QueryValidationService)
-5. **SSE Pub/Sub Pattern**: Real-time notifications via Server-Sent Events (SseNotificationService)
+4. **Validation Pattern**: Multi-layer query validation for security (QueryService)
+5. **Factory Pattern**: Abstraction of connection creation for testability (IDbConnectionFactory)
+6. **SSE Pub/Sub Pattern**: Real-time notifications via Server-Sent Events (SseNotificationService)
 6. **Provider Pattern**: Pluggable resource and prompt providers (IResourceProvider, IPromptProvider)
 7. **Prompt Template Pattern**: Built-in prompts with argument substitution (PromptProvider)
 8. **JSON-RPC 2.0 Pattern**: Standard JSON-RPC request/response with proper error codes
@@ -96,8 +97,10 @@ postgres-mcp/
 - Rate limiting middleware integration
 
 **Services**:
-- **DatabaseService**: Database queries, schema introspection, connection pooling
-- **QueryValidationService**: Multi-layer SQL validation for read-only compliance
+- **IDbConnectionFactory**: Factory for creating database connections (mockable).
+- **NpgsqlConnectionFactory**: Implementation of IDbConnectionFactory using Npgsql.
+- **DatabaseSchemaService**: Database queries, schema introspection (uses IDbConnectionFactory).
+- **QueryService**: SQL query execution with safety validation (uses IDbConnectionFactory).
 - **ConnectionService**: Connection string parsing, connection pooling management
 - **SseNotificationService**: Real-time event streaming to connected clients
 - **ResourceProvider**: Database resources (connections, databases, schemas)

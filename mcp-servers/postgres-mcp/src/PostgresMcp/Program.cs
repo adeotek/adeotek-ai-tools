@@ -19,6 +19,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
 
         // Register application services
         builder.Services.AddSingleton<IConnectionBuilderService, ConnectionBuilderService>();
+        builder.Services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         builder.Services.AddScoped<IDatabaseSchemaService, DatabaseSchemaService>();
         builder.Services.AddScoped<IQueryService, QueryService>();
 
