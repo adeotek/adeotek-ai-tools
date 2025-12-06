@@ -99,6 +99,26 @@ docker-compose up -d
 
 **📄 For detailed documentation**: See `/mcp-servers/postgres-nl-mcp/CLAUDE.md`
 
+### 4. Adeotek SQL MCP Server (`/mcp-servers/adeotek-sql-mcp`)
+
+**Status**: ✅ Production Ready
+
+**Technology Stack**: TypeScript 5.7, Node.js 18+, @modelcontextprotocol/sdk, mssql, pg, Winston
+
+**Purpose**: A production-ready Model Context Protocol server providing read-only access to SQL databases (Microsoft SQL Server and PostgreSQL) with comprehensive security safeguards.
+
+**Key Features**: Five MCP tools (database/table listing, schema analysis, querying, execution plans), three MCP prompts, multi-database support, stdio transport, security-first design with multiple validation layers, >80% test coverage.
+
+**Quick Start**:
+```bash
+cd mcp-servers/adeotek-sql-mcp
+npm install
+npm run build
+npm start
+```
+
+**📄 For detailed documentation**: See `/mcp-servers/adeotek-sql-mcp/CLAUDE.md`
+
 ## Development Guidelines
 
 ### Adding a New Agent
