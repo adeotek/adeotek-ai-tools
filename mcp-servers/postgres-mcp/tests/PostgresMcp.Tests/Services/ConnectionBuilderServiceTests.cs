@@ -298,4 +298,52 @@ public class ConnectionBuilderServiceTests
         // Assert
         Assert.Contains($"Database={databaseName}", connectionString);
     }
+
+    [Fact]
+    public void Constructor_WithConnectionStringMissingHost_ServiceNotConfigured()
+    {
+        // Arrange
+        var options = Options.Create(new PostgresOptions
+        {
+            ConnectionString = "Port=5432;Username=testuser;Password=testpass"
+        });
+
+        // Act
+        var service = new ConnectionBuilderService(_logger, options);
+
+        // Assert
+        Assert.False(service.IsConfigured);
+    }
+
+    [Fact]
+    public void Constructor_WithConnectionStringMissingUsername_ServiceNotConfigured()
+    {
+        // Arrange
+        var options = Options.Create(new PostgresOptions
+        {
+            ConnectionString = "Host=localhost;Port=5432;Password=testpass"
+        });
+
+        // Act
+        var service = new ConnectionBuilderService(_logger, options);
+
+        // Assert
+        Assert.False(service.IsConfigured);
+    }
+
+    [Fact]
+    public void Constructor_WithConnectionStringMissingPassword_ServiceConfigured()
+    {
+        // Arrange - Password can be empty/missing for some authentication methods
+        var options = Options.Create(new PostgresOptions
+        {
+            ConnectionString = "Host=localhost;Port=5432;Username=testuser"
+        });
+
+        // Act
+        var service = new ConnectionBuilderService(_logger, options);
+
+        // Assert
+        Assert.True(service.IsConfigured);
+    }
 }

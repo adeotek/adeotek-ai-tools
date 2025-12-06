@@ -126,15 +126,27 @@ public class ConnectionBuilderService : IConnectionBuilderService
     /// The connection string can include or omit the Database parameter.
     /// </summary>
     /// <param name="connectionString">PostgreSQL connection string</param>
+    /// <exception cref="ArgumentException">Thrown when required connection parameters are missing</exception>
     private void InitializeFromConnectionString(string connectionString)
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
 
+        // Validate required parameters
+        if (string.IsNullOrWhiteSpace(builder.Host))
+        {
+            throw new ArgumentException("Connection string must specify a Host");
+        }
+
+        if (string.IsNullOrWhiteSpace(builder.Username))
+        {
+            throw new ArgumentException("Connection string must specify a Username");
+        }
+
         var options = new ServerConnectionOptions
         {
-            Host = builder.Host ?? "localhost",
+            Host = builder.Host,
             Port = builder.Port,
-            Username = builder.Username ?? string.Empty,
+            Username = builder.Username,
             Password = builder.Password ?? string.Empty,
             UseSsl = builder.SslMode != SslMode.Disable,
             IsConfigured = true
