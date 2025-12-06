@@ -176,7 +176,41 @@ Execute read-only SELECT queries against the database.
 
 ### PostgreSQL Connection
 
-**NEW APPROACH**: PostgreSQL server connection parameters are now configured via the initialization endpoint, not through environment variables or config files.
+The MCP server supports two methods for configuring PostgreSQL connections:
+
+#### Method 1: Pre-configured Connection String (Recommended for Simple Deployments)
+
+Configure a base connection string in `appsettings.json` or via environment variables. This allows the server to connect to a PostgreSQL instance automatically on startup.
+
+**Via environment variable**:
+```bash
+Postgres__ConnectionString=Host=localhost;Port=5432;Username=postgres;Password=yourpass
+```
+
+**Via appsettings.json**:
+```json
+{
+  "Postgres": {
+    "ConnectionString": "Host=localhost;Port=5432;Username=postgres;Password=yourpass"
+  }
+}
+```
+
+**Note**: The connection string should specify the PostgreSQL server but can omit the database parameter. This allows tools to connect to any database on the server.
+
+**Example tool call** with pre-configured connection:
+```json
+{
+  "name": "scan_database_structure",
+  "arguments": {
+    "database": "testdb"
+  }
+}
+```
+
+#### Method 2: Runtime Initialization (For Dynamic Configuration)
+
+Configure PostgreSQL server connection parameters via the initialization endpoint at runtime.
 
 **Initialize the server**:
 ```bash
@@ -191,14 +225,17 @@ Content-Type: application/json
 }
 ```
 
-**Database per tool call**: Each MCP tool call now accepts a `database` parameter instead of a full connection string. This allows querying different databases from the same server without reconfiguration.
+**Note**: Runtime initialization overrides any pre-configured connection string.
+
+**Database per tool call**: Each MCP tool call accepts a `database` parameter to specify which database to query.
 
 **Example**:
 ```json
 {
-  "name": "scan_database_structure",
+  "name": "query_database",
   "arguments": {
-    "database": "testdb"
+    "database": "mydb",
+    "query": "SELECT * FROM customers LIMIT 10"
   }
 }
 ```
@@ -208,12 +245,16 @@ Content-Type: application/json
 Configure connection pool and security settings via environment variables (recommended for production):
 
 ```bash
-# PostgreSQL Connection Settings (not connection string)
+# PostgreSQL Connection String (optional - can also configure at runtime)
+Postgres__ConnectionString=Host=localhost;Port=5432;Username=postgres;Password=yourpass
+
+# PostgreSQL Connection Pool Settings
 Postgres__MaxRetries=3
 Postgres__ConnectionTimeoutSeconds=30
 Postgres__CommandTimeoutSeconds=60
 Postgres__UseSsl=true
 Postgres__MaxPoolSize=100
+Postgres__MinPoolSize=0
 
 # Security Settings
 Security__EnableRateLimiting=true
@@ -228,6 +269,7 @@ Security__MaxQueryExecutionSeconds=30
 ```json
 {
   "Postgres": {
+    "ConnectionString": null,
     "MaxRetries": 3,
     "ConnectionTimeoutSeconds": 30,
     "CommandTimeoutSeconds": 60,

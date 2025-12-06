@@ -590,13 +590,27 @@ This server implements **comprehensive read-only validation** with multiple laye
 ### Configuration Methods
 
 The application supports multiple configuration methods (in priority order):
-1. **Runtime initialization** (via MCP `initialize` method, highest priority)
-2. **Environment variables**
-3. **User secrets** (development only)
-4. **appsettings.{Environment}.json**
-5. **appsettings.json** (default values, lowest priority)
+1. **Runtime initialization** (via MCP `initialize` method, highest priority) - allows dynamic connection configuration
+2. **Connection string in configuration** (appsettings.json or environment variables) - allows pre-configured server connection
+3. **Environment variables** (other settings)
+4. **User secrets** (development only)
+5. **appsettings.{Environment}.json**
+6. **appsettings.json** (default values, lowest priority)
 
-**Note**: In MCP v2.0, connections are no longer pre-configured via connection strings. Instead, clients provide connection strings at runtime when calling tools or initializing the server.
+**Connection String Configuration**: You can optionally configure a PostgreSQL connection string in `appsettings.json` or via environment variables. This allows the MCP server to connect to a PostgreSQL instance without runtime initialization. The connection string should specify the server instance but can omit the database parameter, allowing tools to connect to any database on that server.
+
+**Example**:
+```bash
+# In .env or environment variables
+Postgres__ConnectionString=Host=localhost;Port=5432;Username=postgres;Password=yourpass
+
+# In appsettings.json
+{
+  "Postgres": {
+    "ConnectionString": "Host=localhost;Port=5432;Username=postgres;Password=yourpass"
+  }
+}
+```
 
 ### Environment Variables
 
@@ -609,10 +623,12 @@ DOTNET_ENVIRONMENT=Development                  # Alternative to ASPNETCORE_ENVI
 
 **PostgreSQL Options**:
 ```bash
+Postgres__ConnectionString=Host=...;Port=...;Username=...;Password=...  # Base connection string (optional)
 Postgres__MaxRetries=3                           # Connection retry attempts
 Postgres__ConnectionTimeoutSeconds=30            # Connection timeout
 Postgres__CommandTimeoutSeconds=60               # Query execution timeout
-Postgres__PoolSize=10                            # Connection pool size
+Postgres__MaxPoolSize=100                        # Maximum connection pool size
+Postgres__MinPoolSize=0                          # Minimum connection pool size
 Postgres__UseSsl=true                            # Require SSL for connections
 ```
 
@@ -651,8 +667,8 @@ For local development, use .NET user secrets (never committed to version control
 cd src/PostgresMcp
 dotnet user-secrets init
 
-# Optional: Set default connection for testing
-dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;Database=testdb;Username=postgres;Password=yourpass"
+# Set PostgreSQL connection string for testing
+dotnet user-secrets set "Postgres:ConnectionString" "Host=localhost;Port=5432;Username=postgres;Password=yourpass"
 ```
 
 ## Development Workflow
