@@ -13,7 +13,7 @@ public class InitializeParams
     /// Protocol version supported by client.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Client capabilities.
@@ -57,7 +57,7 @@ public class InitializeResult
     /// Protocol version supported by server.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Server capabilities.
@@ -111,6 +111,13 @@ public class ServerCapabilities
     [JsonPropertyName("tools")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ToolsCapability? Tools { get; set; }
+
+    /// <summary>
+    /// Tasks capability (MCP 2025-11-25).
+    /// </summary>
+    [JsonPropertyName("tasks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TasksCapability? Tasks { get; set; }
 }
 
 /// <summary>
@@ -150,6 +157,24 @@ public class ToolsCapability
 {
     /// <summary>
     /// Whether tools support list changed notifications.
+    /// </summary>
+    [JsonPropertyName("listChanged")]
+    public bool ListChanged { get; set; }
+}
+
+/// <summary>
+/// Tasks capability (MCP 2025-11-25).
+/// </summary>
+public class TasksCapability
+{
+    /// <summary>
+    /// Whether tasks are supported.
+    /// </summary>
+    [JsonPropertyName("supported")]
+    public bool Supported { get; set; }
+
+    /// <summary>
+    /// Whether tasks support list changed notifications.
     /// </summary>
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
