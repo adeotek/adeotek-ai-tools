@@ -77,7 +77,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
         // Add health checks
         builder.Services.AddHealthChecks();
 
-        Log.Information("PostgreSQL MCP Server configured with MCP Protocol v2024-11-05");
+        Log.Information("PostgreSQL MCP Server configured with MCP Protocol v2025-11-25");
     },
     app =>
     {

@@ -24,6 +24,8 @@ public class DatabaseSchemaService(
         string connectionString,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+
         logger.LogInformation("Scanning database schema");
 
         await using var connection = _connectionFactory.CreateConnection(connectionString);
@@ -332,8 +334,9 @@ public class DatabaseSchemaService(
             var result = await cmd.ExecuteScalarAsync(cancellationToken);
             return result as long?;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogDebug(ex, "Failed to get row count for table {Schema}.{Table}", schemaName, tableName);
             return null;
         }
     }

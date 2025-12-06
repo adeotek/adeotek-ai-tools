@@ -142,6 +142,15 @@ public static class McpProtocolEndpoints
     {
         try
         {
+            // MCP Spec 2025-11-25: Request ID MUST NOT be null (unlike base JSON-RPC 2.0)
+            // Notifications (like "initialized") are the exception as they don't require responses
+            if (request.Id == null && request.Method != "initialized")
+            {
+                logger.LogWarning("Request rejected: ID is null for non-notification method '{Method}'", request.Method);
+                return CreateErrorResponse(null, JsonRpcErrorCodes.InvalidRequest,
+                    "Request ID must not be null per MCP specification (2025-11-25). Only notifications may omit the ID.");
+            }
+
             logger.LogInformation("Processing JSON-RPC method: {Method}", request.Method);
 
             var result = request.Method switch
@@ -201,11 +210,12 @@ public static class McpProtocolEndpoints
 
         var result = new InitializeResult
         {
-            ProtocolVersion = "2024-11-05",
+            ProtocolVersion = "2025-11-25",
             ServerInfo = new Implementation
             {
                 Name = "PostgreSQL MCP Server",
-                Version = "2.0.0"
+                Version = "2.0.0",
+                Description = "Read-only PostgreSQL MCP server providing secure database access without AI/LLM dependencies"
             },
             Capabilities = new ServerCapabilities
             {
@@ -243,6 +253,7 @@ public static class McpProtocolEndpoints
                 Description = "Scan and analyze PostgreSQL database structure including tables, columns, indexes, foreign keys, and relationships. This is a read-only operation.",
                 InputSchema = new
                 {
+                    schema = "https://json-schema.org/draft/2020-12/schema",
                     type = "object",
                     properties = new
                     {
@@ -261,6 +272,7 @@ public static class McpProtocolEndpoints
                 Description = "Execute a read-only SELECT query against the PostgreSQL database. Only SELECT queries are allowed - no data or schema modifications permitted.",
                 InputSchema = new
                 {
+                    schema = "https://json-schema.org/draft/2020-12/schema",
                     type = "object",
                     properties = new
                     {
@@ -587,7 +599,7 @@ public static class McpProtocolEndpoints
         {
             name = "PostgreSQL MCP Server",
             version = "2.0.0",
-            protocolVersion = "2024-11-05",
+            protocolVersion = "2025-11-25",
             description = "Read-only Model Context Protocol server for PostgreSQL database operations",
             capabilities = new
             {
