@@ -11,6 +11,13 @@ public class PostgresOptions
     public const string SectionName = "Postgres";
 
     /// <summary>
+    /// Base connection string for the PostgreSQL server instance.
+    /// Should connect to the PostgreSQL server but can omit the Database parameter.
+    /// Format: Host=localhost;Port=5432;Username=postgres;Password=yourpass
+    /// </summary>
+    public string? ConnectionString { get; set; }
+
+    /// <summary>
     /// Maximum number of connection retries.
     /// </summary>
     public int MaxRetries { get; set; } = 3;

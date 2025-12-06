@@ -20,6 +20,20 @@ public class ConnectionBuilderService : IConnectionBuilderService
     {
         _logger = logger;
         _postgresOptions = postgresOptions.Value;
+
+        // Auto-configure from connection string if provided in configuration
+        if (!string.IsNullOrWhiteSpace(_postgresOptions.ConnectionString))
+        {
+            try
+            {
+                InitializeFromConnectionString(_postgresOptions.ConnectionString);
+                _logger.LogInformation("Server connection configured from appsettings connection string");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to initialize from connection string in configuration. Connection can still be configured at runtime.");
+            }
+        }
     }
 
     /// <inheritdoc/>
@@ -104,6 +118,33 @@ public class ConnectionBuilderService : IConnectionBuilderService
                 Password = "***",
                 IsConfigured = _serverConnection.IsConfigured
             };
+        }
+    }
+
+    /// <summary>
+    /// Initialize server connection from a connection string.
+    /// The connection string can include or omit the Database parameter.
+    /// </summary>
+    /// <param name="connectionString">PostgreSQL connection string</param>
+    private void InitializeFromConnectionString(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        var options = new ServerConnectionOptions
+        {
+            Host = builder.Host ?? "localhost",
+            Port = builder.Port,
+            Username = builder.Username ?? string.Empty,
+            Password = builder.Password ?? string.Empty,
+            UseSsl = builder.SslMode != SslMode.Disable,
+            IsConfigured = true
+        };
+
+        lock (_lock)
+        {
+            _serverConnection = options;
+            _logger.LogDebug("Server connection initialized from connection string: {Host}:{Port} as user {Username}",
+                options.Host, options.Port, options.Username);
         }
     }
 }
