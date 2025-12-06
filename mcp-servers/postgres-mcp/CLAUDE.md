@@ -8,7 +8,7 @@ This document provides comprehensive technical context about the PostgreSQL MCP 
 
 **Version**: 2.0.0
 
-**MCP Protocol**: 2024-11-05 (Full JSON-RPC 2.0 support with SSE notifications, Resources, and Prompts)
+**MCP Protocol**: 2025-11-25 (Full JSON-RPC 2.0 support with SSE notifications, Resources, and Prompts)
 
 **Technology Stack**: .NET 10, ASP.NET Core 10, Npgsql 8+, Serilog, Scalar, AspNetCoreRateLimit
 
@@ -113,7 +113,7 @@ postgres-mcp/
 
 ## MCP Protocol v2.0 Implementation
 
-This server implements the full MCP Protocol v2.0 specification (2024-11-05) with JSON-RPC 2.0 request/response handling.
+This server implements the full MCP Protocol v2.0 specification (2025-11-25) with JSON-RPC 2.0 request/response handling.
 
 ### Supported MCP Methods
 
@@ -128,7 +128,7 @@ Initialize the MCP connection with server capabilities and metadata.
   "id": 1,
   "method": "initialize",
   "params": {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-11-25",
     "clientInfo": {
       "name": "my-client",
       "version": "1.0.0"
@@ -585,18 +585,73 @@ This server implements **comprehensive read-only validation** with multiple laye
 4. **Query timeouts**: Prevents long-running queries
 5. **Rate limiting**: Protects against abuse (configurable per IP)
 
+## MCP Specification 2025-11-25 Compliance
+
+### Compliance Status
+
+This PostgreSQL MCP Server implements **MCP Protocol 2025-11-25** with the following compliance level:
+
+**Core Features** (✅ Fully Implemented):
+- JSON-RPC 2.0 base protocol with proper message format
+- Lifecycle management (initialize, initialized, ping)
+- Tools support (tools/list, tools/call)
+- Resources support (resources/list, resources/read, resources/subscribe, resources/unsubscribe)
+- Prompts support (prompts/list, prompts/get)
+- Server-Sent Events (SSE) for real-time notifications
+- Server discovery via `.well-known/mcp.json`
+- Batch request support
+- Proper error handling with JSON-RPC error codes
+
+**New 2025-11-25 Features**:
+- **Async Tasks** (⚠️ Declared but not yet implemented): Tasks capability is advertised in server capabilities as `supported: false`. This indicates the server is aware of the tasks feature but has not yet implemented the full task management API (tasks/create, tasks/get, tasks/list, tasks/cancel). Implementation is planned for a future release.
+- **CIMD/OAuth** (❌ Not applicable): This server uses runtime initialization for connection configuration instead of OAuth-based authentication.
+- **Official Extensions** (❌ Not yet declared): No custom protocol extensions are currently used.
+
+### Protocol Version Negotiation
+
+The server declares support for MCP Protocol version **2025-11-25** during the initialize handshake. Clients using older protocol versions (e.g., 2024-11-05) will continue to work as the core protocol features remain backward compatible.
+
+### Future Roadmap
+
+**Planned for Future Releases**:
+1. **Full Async Tasks Implementation**: Complete support for long-running database operations with progress tracking, cancellation, and task state management
+2. **Enhanced Server Discovery**: Additional metadata in `.well-known/mcp.json` for better registry integration
+3. **Official Extensions**: Declare and document any custom protocol extensions
+
+### Compliance Documentation
+
+For detailed compliance analysis, see `MCP_COMPLIANCE_ANALYSIS.md` in the project root. This document includes:
+- Feature-by-feature compliance status
+- Gaps and missing features
+- Implementation priorities
+- References to MCP specification
+
 ## Configuration
 
 ### Configuration Methods
 
 The application supports multiple configuration methods (in priority order):
-1. **Runtime initialization** (via MCP `initialize` method, highest priority)
-2. **Environment variables**
-3. **User secrets** (development only)
-4. **appsettings.{Environment}.json**
-5. **appsettings.json** (default values, lowest priority)
+1. **Runtime initialization** (via MCP `initialize` method, highest priority) - allows dynamic connection configuration
+2. **Connection string in configuration** (appsettings.json or environment variables) - allows pre-configured server connection
+3. **Environment variables** (other settings)
+4. **User secrets** (development only)
+5. **appsettings.{Environment}.json**
+6. **appsettings.json** (default values, lowest priority)
 
-**Note**: In MCP v2.0, connections are no longer pre-configured via connection strings. Instead, clients provide connection strings at runtime when calling tools or initializing the server.
+**Connection String Configuration**: You can optionally configure a PostgreSQL connection string in `appsettings.json` or via environment variables. This allows the MCP server to connect to a PostgreSQL instance without runtime initialization. The connection string should specify the server instance but can omit the database parameter, allowing tools to connect to any database on that server.
+
+**Example**:
+```bash
+# In .env or environment variables
+Postgres__ConnectionString=Host=localhost;Port=5432;Username=postgres;Password=yourpass
+
+# In appsettings.json
+{
+  "Postgres": {
+    "ConnectionString": "Host=localhost;Port=5432;Username=postgres;Password=yourpass"
+  }
+}
+```
 
 ### Environment Variables
 
@@ -609,10 +664,12 @@ DOTNET_ENVIRONMENT=Development                  # Alternative to ASPNETCORE_ENVI
 
 **PostgreSQL Options**:
 ```bash
+Postgres__ConnectionString=Host=...;Port=...;Username=...;Password=...  # Base connection string (optional)
 Postgres__MaxRetries=3                           # Connection retry attempts
 Postgres__ConnectionTimeoutSeconds=30            # Connection timeout
 Postgres__CommandTimeoutSeconds=60               # Query execution timeout
-Postgres__PoolSize=10                            # Connection pool size
+Postgres__MaxPoolSize=100                        # Maximum connection pool size
+Postgres__MinPoolSize=0                          # Minimum connection pool size
 Postgres__UseSsl=true                            # Require SSL for connections
 ```
 
@@ -651,8 +708,8 @@ For local development, use .NET user secrets (never committed to version control
 cd src/PostgresMcp
 dotnet user-secrets init
 
-# Optional: Set default connection for testing
-dotnet user-secrets set "Postgres:DefaultConnectionString" "Host=localhost;Database=testdb;Username=postgres;Password=yourpass"
+# Set PostgreSQL connection string for testing
+dotnet user-secrets set "Postgres:ConnectionString" "Host=localhost;Port=5432;Username=postgres;Password=yourpass"
 ```
 
 ## Development Workflow
@@ -835,7 +892,7 @@ docker rm postgres-mcp
   "id": 1,
   "method": "initialize",
   "params": {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-11-25",
     "clientInfo": {
       "name": "my-client",
       "version": "1.0.0"
@@ -900,7 +957,7 @@ curl -N "http://localhost:5000/mcp/v1/sse"
 {
   "serverName": "postgres-mcp",
   "serverVersion": "2.0.0",
-  "protocolVersion": "2024-11-05",
+  "protocolVersion": "2025-11-25",
   "capabilities": {
     "tools": true,
     "resources": true,
@@ -937,7 +994,7 @@ Health check endpoint.
   "status": "healthy",
   "timestamp": "2024-12-03T10:30:00Z",
   "version": "2.0.0",
-  "protocolVersion": "2024-11-05"
+  "protocolVersion": "2025-11-25"
 }
 ```
 
@@ -1372,7 +1429,7 @@ curl -X POST http://localhost:5000/mcp/v1/messages \
     "id": 1,
     "method": "initialize",
     "params": {
-      "protocolVersion": "2024-11-05",
+      "protocolVersion": "2025-11-25",
       "clientInfo": {"name": "test", "version": "1.0"}
     }
   }' | jq

@@ -158,6 +158,11 @@ public static class McpProtocolEndpoints
                 "resources/unsubscribe" => await HandleResourcesUnsubscribeAsync(request, resourceProvider),
                 "prompts/list" => await HandlePromptsListAsync(promptProvider),
                 "prompts/get" => await HandlePromptsGetAsync(request, promptProvider),
+                // Task methods (MCP 2025-11-25) - not yet implemented
+                "tasks/list" => HandleTasksNotImplemented("tasks/list"),
+                "tasks/get" => HandleTasksNotImplemented("tasks/get"),
+                "tasks/create" => HandleTasksNotImplemented("tasks/create"),
+                "tasks/cancel" => HandleTasksNotImplemented("tasks/cancel"),
                 _ => throw new InvalidOperationException($"Unknown method: {request.Method}")
             };
 
@@ -201,7 +206,7 @@ public static class McpProtocolEndpoints
 
         var result = new InitializeResult
         {
-            ProtocolVersion = "2024-11-05",
+            ProtocolVersion = "2025-11-25",
             ServerInfo = new Implementation
             {
                 Name = "PostgreSQL MCP Server",
@@ -215,7 +220,12 @@ public static class McpProtocolEndpoints
                     Subscribe = true,
                     ListChanged = true
                 },
-                Prompts = new PromptsCapability { ListChanged = true }
+                Prompts = new PromptsCapability { ListChanged = true },
+                Tasks = new TasksCapability
+                {
+                    Supported = false,  // Planned for future release
+                    ListChanged = false
+                }
             }
         };
 
@@ -394,6 +404,18 @@ public static class McpProtocolEndpoints
         }
 
         return await promptProvider.GetPromptAsync(getParams.Name, getParams.Arguments);
+    }
+
+    /// <summary>
+    /// Handle task methods that are declared but not yet implemented.
+    /// Returns a proper error response instead of "Unknown method".
+    /// </summary>
+    private static object HandleTasksNotImplemented(string methodName)
+    {
+        throw new NotImplementedException(
+            $"Task management ({methodName}) is declared in server capabilities but not yet implemented. " +
+            "Async tasks support is planned for a future release. The server currently processes " +
+            "all tool operations synchronously.");
     }
 
     #endregion
