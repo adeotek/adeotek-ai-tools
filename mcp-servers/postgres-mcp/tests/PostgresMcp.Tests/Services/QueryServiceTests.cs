@@ -92,11 +92,6 @@ public class QueryServiceTests
     [Theory]
     [InlineData("; DROP TABLE users")]
     [InlineData("SELECT * FROM users; DELETE FROM users")]
-    // Note: The current implementation might not catch semicolon injection if not explicitly handled,
-    // but the regex blacklist handles DROP/DELETE.
-    // Let's rely on what we saw in the implementation.
-    // The implementation removes comments but doesn't explicitly split by semicolon,
-    // however it checks for blacklist keywords anywhere in the normalized string.
     public void ValidateQuerySafety_InjectionAttempts_ReturnsFalse(string query)
     {
         // Act
@@ -104,5 +99,97 @@ public class QueryServiceTests
 
         // Assert
         Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("SET session_replication_role = 'replica'")]
+    [InlineData("RESET ALL")]
+    public void ValidateQuerySafety_ConfigurationCommands_ReturnsFalse(string query)
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(query);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("LISTEN events")]
+    [InlineData("NOTIFY channel, 'message'")]
+    [InlineData("UNLISTEN *")]
+    public void ValidateQuerySafety_MessagingCommands_ReturnsFalse(string query)
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(query);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("LOCK TABLE users IN ACCESS EXCLUSIVE MODE")]
+    [InlineData("SELECT * FROM users FOR UPDATE")]
+    public void ValidateQuerySafety_LockingCommands_ReturnsFalse(string query)
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(query);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("DO $$ BEGIN RAISE NOTICE 'test'; END $$")]
+    [InlineData("SELECT * FROM pg_read_file('/etc/passwd')")]
+    public void ValidateQuerySafety_ProceduralCodeAndDangerousFunctions_ReturnsFalse(string query)
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(query);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void ValidateQuerySafety_WithNullQuery_ReturnsFalse()
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(null!);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void ValidateQuerySafety_WithEmptyQuery_ReturnsFalse()
+    {
+        // Act
+        var result = _service.ValidateQuerySafety("");
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void ValidateQuerySafety_WithWhitespaceQuery_ReturnsFalse()
+    {
+        // Act
+        var result = _service.ValidateQuerySafety("   ");
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("SELECT * FROM users -- inline comment")]
+    [InlineData("SELECT * /* mid-query comment */ FROM users")]
+    [InlineData("SELECT col1, col2 FROM users /* end comment */")]
+    public void ValidateQuerySafety_CommentsInQueries_AreHandledCorrectly(string query)
+    {
+        // Act
+        var result = _service.ValidateQuerySafety(query);
+
+        // Assert
+        Assert.True(result);
     }
 }

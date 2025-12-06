@@ -13,7 +13,7 @@ public class InitializeParams
     /// Protocol version supported by client.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Client capabilities.
@@ -57,7 +57,7 @@ public class InitializeResult
     /// Protocol version supported by server.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Server capabilities.
@@ -171,6 +171,14 @@ public class Implementation
     /// </summary>
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Implementation description (optional, for server discovery).
+    /// Added in MCP Protocol 2025-11-25 for alignment with MCP registry server.json format.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
 }
 
 #endregion
@@ -199,6 +207,15 @@ public class Tool
     /// </summary>
     [JsonPropertyName("inputSchema")]
     public object InputSchema { get; set; } = new { };
+
+    /// <summary>
+    /// Icon for visual identification (optional).
+    /// Can be a URL or data URI (e.g., "data:image/svg+xml,...").
+    /// Added in MCP Protocol 2025-11-25 (SEP-973).
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Icon { get; set; }
 }
 
 /// <summary>
@@ -318,6 +335,15 @@ public class Resource
     [JsonPropertyName("mimeType")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MimeType { get; set; }
+
+    /// <summary>
+    /// Icon for visual identification (optional).
+    /// Can be a URL or data URI (e.g., "data:image/svg+xml,...").
+    /// Added in MCP Protocol 2025-11-25 (SEP-973).
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Icon { get; set; }
 }
 
 /// <summary>
@@ -460,6 +486,15 @@ public class Prompt
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<PromptArgument>? Arguments { get; set; }
+
+    /// <summary>
+    /// Icon for visual identification (optional).
+    /// Can be a URL or data URI (e.g., "data:image/svg+xml,...").
+    /// Added in MCP Protocol 2025-11-25 (SEP-973).
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Icon { get; set; }
 }
 
 /// <summary>

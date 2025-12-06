@@ -11,6 +11,13 @@ public class PostgresOptions
     public const string SectionName = "Postgres";
 
     /// <summary>
+    /// PostgreSQL connection string template. Should connect to the PostgreSQL server instance.
+    /// The database name can be omitted or set to a default, as tools will specify the database to use.
+    /// Example: "Host=localhost;Port=5432;Username=postgres;Password=yourpassword;Database=postgres"
+    /// </summary>
+    public string? ConnectionString { get; set; }
+
+    /// <summary>
     /// Maximum number of connection retries.
     /// </summary>
     public int MaxRetries { get; set; } = 3;

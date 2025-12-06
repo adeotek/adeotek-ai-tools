@@ -16,6 +16,8 @@ services:
       # ASP.NET Core Configuration
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:5000}
+      # PostgreSQL Connection
+      - Postgres__ConnectionString=${Postgres__ConnectionString:-Host=postgres;Port=5432;Username=postgres;Password=password;Database=postgres}
       # Security Settings
       - Security__EnableRateLimiting=${Security__EnableRateLimiting:-false}
       - Security__RequestsPerMinute=${Security__RequestsPerMinute:-60}

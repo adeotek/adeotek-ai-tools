@@ -29,6 +29,9 @@ public class QueryService(
         string sql,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+
         // Validate query safety first
         if (!ValidateQuerySafety(sql))
         {
@@ -94,6 +97,12 @@ public class QueryService(
     /// <inheritdoc/>
     public bool ValidateQuerySafety(string sql)
     {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            logger.LogWarning("Query validation failed: Query is null or empty");
+            return false;
+        }
+
         try
         {
             var normalizedQuery = sql.ToUpperInvariant().Trim();
