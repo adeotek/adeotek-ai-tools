@@ -2,7 +2,7 @@
 
 A **read-only** Model Context Protocol (MCP) server for PostgreSQL database operations. This MCP server provides secure, read-only access to PostgreSQL databases for AI agents and applications, blocking all data and schema modifications.
 
-**Version**: 2.0.0 | **MCP Protocol**: 2024-11-05 | **.NET**: 10
+**Version**: 2.0.0 | **MCP Protocol**: 2025-11-25 | **.NET**: 10
 
 ## Features
 
@@ -55,7 +55,7 @@ Execute read-only SELECT queries against the database.
 
 ## What's New in v2.0
 
-### Full MCP Protocol Support (v2024-11-05)
+### Full MCP Protocol Support (v2025-11-25)
 - **JSON-RPC 2.0 Endpoint**: Standard MCP clients connect via `/mcp/v1/messages`
 - **All MCP Methods**: initialize, initialized, ping, tools/*, resources/*, prompts/*
 - **Batch Requests**: Send multiple requests in a single batch operation
@@ -614,19 +614,19 @@ postgres-mcp/
 
 ## Comparison with postgres-nl-mcp
 
-| Feature | postgres-mcp | postgres-nl-mcp |
-|---------|--------------|-----------------|
-| **Purpose** | Direct read-only database access | AI-powered natural language queries |
-| **MCP Protocol Version** | ✅ v2024-11-05 (JSON-RPC 2.0) | ✅ v2024-11-05 (JSON-RPC 2.0) |
-| **Resources Support** | ✅ Yes (database resources) | ✅ Yes (enhanced) |
-| **Prompts Support** | ✅ 4 built-in templates | ✅ 6 advanced templates |
-| **SSE Notifications** | ✅ Yes | ✅ Yes |
-| **AI/LLM** | ❌ None | ✅ Multiple providers (OpenAI, Claude, Gemini, Ollama, LM Studio) |
-| **Query Generation** | ❌ Manual SQL only | ✅ Natural language to SQL |
-| **Query Optimization** | ❌ None | ✅ AI-powered optimization |
-| **Complexity** | Simple, lightweight | Advanced, feature-rich |
-| **Use Case** | Agents with SQL knowledge | Agents with natural language only |
-| **Dependencies** | Minimal | LLM API keys required |
+| Feature                  | postgres-mcp                     | postgres-nl-mcp                                                  |
+| ------------------------ | -------------------------------- | ---------------------------------------------------------------- |
+| **Purpose**              | Direct read-only database access | AI-powered natural language queries                              |
+| **MCP Protocol Version** | ✅ v2025-11-25 (JSON-RPC 2.0)     | ✅ v2025-11-25 (JSON-RPC 2.0)                                     |
+| **Resources Support**    | ✅ Yes (database resources)       | ✅ Yes (enhanced)                                                 |
+| **Prompts Support**      | ✅ 4 built-in templates           | ✅ 6 advanced templates                                           |
+| **SSE Notifications**    | ✅ Yes                            | ✅ Yes                                                            |
+| **AI/LLM**               | ❌ None                           | ✅ Multiple providers (OpenAI, Claude, Gemini, Ollama, LM Studio) |
+| **Query Generation**     | ❌ Manual SQL only                | ✅ Natural language to SQL                                        |
+| **Query Optimization**   | ❌ None                           | ✅ AI-powered optimization                                        |
+| **Complexity**           | Simple, lightweight              | Advanced, feature-rich                                           |
+| **Use Case**             | Agents with SQL knowledge        | Agents with natural language only                                |
+| **Dependencies**         | Minimal                          | LLM API keys required                                            |
 
 ## Advanced Features
 
@@ -676,7 +676,7 @@ curl http://localhost:5000/.well-known/mcp.json
 ```
 
 The response advertises:
-- Protocol version (2024-11-05)
+- Protocol version (2025-11-25)
 - Supported capabilities (tools, resources, prompts)
 - Server information and version
 
@@ -708,14 +708,14 @@ Content-Type: application/json
 
 The server returns proper JSON-RPC 2.0 error codes:
 
-| Code | Meaning |
-|------|---------|
-| -32700 | Parse error |
-| -32600 | Invalid request |
-| -32601 | Method not found |
-| -32602 | Invalid parameters |
-| -32603 | Internal error |
-| -32000 to -32099 | Server errors |
+| Code             | Meaning            |
+| ---------------- | ------------------ |
+| -32700           | Parse error        |
+| -32600           | Invalid request    |
+| -32601           | Method not found   |
+| -32602           | Invalid parameters |
+| -32603           | Internal error     |
+| -32000 to -32099 | Server errors      |
 
 ## Deployment
 

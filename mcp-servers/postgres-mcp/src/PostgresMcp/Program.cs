@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using AspNetCoreRateLimit;
 using PostgresMcp.Endpoints;
 using PostgresMcp.Extensions;
@@ -5,6 +6,8 @@ using PostgresMcp.Models;
 using PostgresMcp.Services;
 using Scalar.AspNetCore;
 using Serilog;
+
+[assembly: InternalsVisibleTo("PostgresMcp.Tests")]
 
 await HostBuilderExtensions.WebApplicationRunAsync(args,
     builder =>
@@ -77,7 +80,7 @@ await HostBuilderExtensions.WebApplicationRunAsync(args,
         // Add health checks
         builder.Services.AddHealthChecks();
 
-        Log.Information("PostgreSQL MCP Server configured with MCP Protocol v2024-11-05");
+        Log.Information("PostgreSQL MCP Server configured with MCP Protocol v2025-11-25");
     },
     app =>
     {

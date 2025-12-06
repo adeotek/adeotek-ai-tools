@@ -8,7 +8,7 @@ This document provides comprehensive technical context about the PostgreSQL MCP 
 
 **Version**: 2.0.0
 
-**MCP Protocol**: 2024-11-05 (Full JSON-RPC 2.0 support with SSE notifications, Resources, and Prompts)
+**MCP Protocol**: 2025-11-25 (Full JSON-RPC 2.0 support with SSE notifications, Resources, Prompts, and Icons)
 
 **Technology Stack**: .NET 10, ASP.NET Core 10, Npgsql 8+, Serilog, Scalar, AspNetCoreRateLimit
 
@@ -113,7 +113,7 @@ postgres-mcp/
 
 ## MCP Protocol v2.0 Implementation
 
-This server implements the full MCP Protocol v2.0 specification (2024-11-05) with JSON-RPC 2.0 request/response handling.
+This server implements the full MCP Protocol v2.0 specification (2025-11-25) with JSON-RPC 2.0 request/response handling.
 
 ### Supported MCP Methods
 
@@ -128,7 +128,7 @@ Initialize the MCP connection with server capabilities and metadata.
   "id": 1,
   "method": "initialize",
   "params": {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-11-25",
     "clientInfo": {
       "name": "my-client",
       "version": "1.0.0"
@@ -949,21 +949,21 @@ Beautiful interactive API documentation powered by Scalar.
 
 It's important to understand the differences between the two PostgreSQL MCP servers:
 
-| Feature | postgres-mcp (this project) | postgres-nl-mcp |
-|---------|----------------------------|-----------------|
-| **Purpose** | Direct read-only SQL access | AI-powered natural language queries |
-| **AI/LLM Required** | ❌ No | ✅ Yes (OpenAI, Anthropic, Gemini, Ollama, LM Studio) |
-| **Query Input** | Manual SQL only | Natural language OR SQL |
-| **Query Generation** | ❌ None | ✅ AI-powered natural language to SQL |
-| **Query Optimization** | ❌ None | ✅ AI-powered optimization suggestions |
-| **Relationship Detection** | ❌ Manual JOINs | ✅ Automatic based on foreign keys |
-| **Complexity** | Simple, lightweight | Advanced, feature-rich |
-| **Dependencies** | Minimal (.NET, PostgreSQL) | Requires AI API keys or local LLM |
-| **Use Case** | Agents with SQL knowledge | Agents with natural language only |
-| **MCP Tools** | 2 tools | 3 tools |
-| **Cost** | Free (no AI API calls) | Depends on AI provider usage |
-| **Performance** | Fast (direct SQL) | Depends on AI API latency |
-| **Privacy** | High (no external API calls) | Depends on AI provider (can use local Ollama/LM Studio) |
+| Feature                    | postgres-mcp (this project)  | postgres-nl-mcp                                         |
+| -------------------------- | ---------------------------- | ------------------------------------------------------- |
+| **Purpose**                | Direct read-only SQL access  | AI-powered natural language queries                     |
+| **AI/LLM Required**        | ❌ No                         | ✅ Yes (OpenAI, Anthropic, Gemini, Ollama, LM Studio)    |
+| **Query Input**            | Manual SQL only              | Natural language OR SQL                                 |
+| **Query Generation**       | ❌ None                       | ✅ AI-powered natural language to SQL                    |
+| **Query Optimization**     | ❌ None                       | ✅ AI-powered optimization suggestions                   |
+| **Relationship Detection** | ❌ Manual JOINs               | ✅ Automatic based on foreign keys                       |
+| **Complexity**             | Simple, lightweight          | Advanced, feature-rich                                  |
+| **Dependencies**           | Minimal (.NET, PostgreSQL)   | Requires AI API keys or local LLM                       |
+| **Use Case**               | Agents with SQL knowledge    | Agents with natural language only                       |
+| **MCP Tools**              | 2 tools                      | 3 tools                                                 |
+| **Cost**                   | Free (no AI API calls)       | Depends on AI provider usage                            |
+| **Performance**            | Fast (direct SQL)            | Depends on AI API latency                               |
+| **Privacy**                | High (no external API calls) | Depends on AI provider (can use local Ollama/LM Studio) |
 
 **When to use postgres-mcp**:
 - Your AI agent already knows SQL

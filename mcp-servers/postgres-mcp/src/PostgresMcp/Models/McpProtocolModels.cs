@@ -13,7 +13,7 @@ public class InitializeParams
     /// Protocol version supported by client.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Client capabilities.
@@ -57,7 +57,7 @@ public class InitializeResult
     /// Protocol version supported by server.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>
     /// Server capabilities.
@@ -171,6 +171,13 @@ public class Implementation
     /// </summary>
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Implementation description.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
 }
 
 #endregion
@@ -199,6 +206,13 @@ public class Tool
     /// </summary>
     [JsonPropertyName("inputSchema")]
     public object InputSchema { get; set; } = new { };
+
+    /// <summary>
+    /// Tool icon.
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Icon { get; set; }
 }
 
 /// <summary>
@@ -318,6 +332,13 @@ public class Resource
     [JsonPropertyName("mimeType")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MimeType { get; set; }
+
+    /// <summary>
+    /// Resource icon.
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Icon { get; set; }
 }
 
 /// <summary>
@@ -453,6 +474,13 @@ public class Prompt
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Prompt icon.
+    /// </summary>
+    [JsonPropertyName("icon")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Icon { get; set; }
 
     /// <summary>
     /// Arguments the prompt accepts.

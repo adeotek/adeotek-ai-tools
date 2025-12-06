@@ -8,7 +8,7 @@ This document provides comprehensive technical context about the PostgreSQL MCP 
 
 **Version**: 2.0.0
 
-**MCP Protocol**: 2024-11-05 (Full JSON-RPC 2.0 support with SSE notifications, Resources, and Prompts)
+**MCP Protocol**: 2025-11-25 (Full JSON-RPC 2.0 support with SSE notifications, Resources, Prompts, and Icons)
 
 **Technology Stack**: .NET 10, ASP.NET Core 10, Npgsql 8+, Serilog, Scalar, AspNetCoreRateLimit
 
@@ -109,14 +109,14 @@ postgres-mcp/
 **Models**:
 - **JsonRpcModels**: JSON-RPC 2.0 request/response structures
 - **McpProtocolModels**: MCP v2.0 types (Tool, Resource, Prompt, TextContent, etc.)
-- **ServerConnectionOptions**: Server initialization and connection management
+- **ServerConnectionOptions**: Server initialization and connection management (Legacy/Fallback)
 - **DatabaseModels**: Schema representation (tables, columns, foreign keys, indexes)
-- **PostgresOptions**: PostgreSQL connection and behavior configuration
+- **PostgresOptions**: PostgreSQL connection configuration including `ConnectionString`
 - **SecurityOptions**: Rate limiting, query limits, timeout configuration
 
 ## MCP Protocol v2.0 Implementation
 
-This server implements the full MCP Protocol v2.0 specification (2024-11-05) with JSON-RPC 2.0 request/response handling.
+This server implements the full MCP Protocol v2.0 specification (2025-11-25) with JSON-RPC 2.0 request/response handling.
 
 ### Supported MCP Methods
 
@@ -131,7 +131,7 @@ Initialize the MCP connection with server capabilities and metadata.
   "id": 1,
   "method": "initialize",
   "params": {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-11-25",
     "clientInfo": {
       "name": "my-client",
       "version": "1.0.0"
@@ -222,7 +222,7 @@ Scan and analyze PostgreSQL database structure in detail.
 **Input Schema**:
 ```json
 {
-  "connectionString": "Host=...;Database=...;Username=...;Password=...",
+  "database": "mydb",
   "schemaFilter": "public"  // optional, defaults to "public"
 }
 ```
@@ -249,7 +249,7 @@ Execute read-only SELECT queries against the database.
 **Input Schema**:
 ```json
 {
-  "connectionString": "Host=...;Database=...;Username=...;Password=...",
+  "database": "mydb",
   "query": "SELECT * FROM customers WHERE created_at > '2024-01-01' LIMIT 100"
 }
 ```

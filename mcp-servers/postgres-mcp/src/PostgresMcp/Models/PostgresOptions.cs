@@ -31,6 +31,12 @@ public class PostgresOptions
     public bool UseSsl { get; set; } = true;
 
     /// <summary>
+    /// Connection string for the PostgreSQL server.
+    /// If provided, this overrides individual connection parameters.
+    /// </summary>
+    public string? ConnectionString { get; set; }
+
+    /// <summary>
     /// Maximum size of connection pool.
     /// </summary>
     public int MaxPoolSize { get; set; } = 100;

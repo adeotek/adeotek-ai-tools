@@ -189,7 +189,7 @@ public static class McpProtocolEndpoints
 
     #region MCP Protocol Methods
 
-    private static Task<object> HandleInitializeAsync(
+    internal static Task<object> HandleInitializeAsync(
         JsonRpcRequest request,
         IConnectionBuilderService connectionBuilder,
         ILogger<Program> logger)
@@ -201,11 +201,12 @@ public static class McpProtocolEndpoints
 
         var result = new InitializeResult
         {
-            ProtocolVersion = "2024-11-05",
+            ProtocolVersion = "2025-11-25",
             ServerInfo = new Implementation
             {
                 Name = "PostgreSQL MCP Server",
-                Version = "2.0.0"
+                Version = "2.0.0",
+                Description = "Read-only Model Context Protocol server for PostgreSQL database operations"
             },
             Capabilities = new ServerCapabilities
             {
@@ -233,7 +234,7 @@ public static class McpProtocolEndpoints
         return new { };
     }
 
-    private static object HandleToolsList()
+    internal static object HandleToolsList()
     {
         var tools = new List<Tool>
         {
@@ -283,7 +284,7 @@ public static class McpProtocolEndpoints
         return new ListToolsResult { Tools = tools };
     }
 
-    private static async Task<object> HandleToolsCallAsync(
+    internal static async Task<object> HandleToolsCallAsync(
         JsonRpcRequest request,
         IConnectionBuilderService connectionBuilder,
         IDatabaseSchemaService schemaService,
@@ -291,42 +292,67 @@ public static class McpProtocolEndpoints
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
-        var callParams = DeserializeParams<CallToolParams>(request.Params);
-        if (callParams == null)
+        try
         {
-            throw new ArgumentException("Invalid tool call parameters");
-        }
+            var callParams = DeserializeParams<CallToolParams>(request.Params);
+            if (callParams == null)
+            {
+                return new CallToolResult
+                {
+                    IsError = true,
+                    Content = [new Content { Type = "text", Text = "Invalid tool call parameters" }]
+                };
+            }
 
-        if (!connectionBuilder.IsConfigured)
+            if (!connectionBuilder.IsConfigured)
+            {
+                return new CallToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new Content
+                        {
+                            Type = "text",
+                            Text = "Server not configured. Call initialize with PostgreSQL connection details first."
+                        }
+                    ]
+                };
+            }
+
+            logger.LogInformation("Calling tool: {ToolName}", callParams.Name);
+
+            return callParams.Name switch
+            {
+                "scan_database_structure" => await ExecuteScanDatabaseAsync(callParams.Arguments,
+                    connectionBuilder, schemaService, cancellationToken),
+                "query_database" => await ExecuteQueryDatabaseAsync(callParams.Arguments,
+                    connectionBuilder, queryService, cancellationToken),
+                _ => new CallToolResult
+                {
+                    IsError = true,
+                    Content = [new Content { Type = "text", Text = $"Unknown tool: {callParams.Name}" }]
+                }
+            };
+        }
+        catch (ArgumentException ex)
         {
+            logger.LogWarning(ex, "Tool argument validation error");
             return new CallToolResult
             {
                 IsError = true,
-                Content =
-                [
-                    new Content
-                    {
-                        Type = "text",
-                        Text = "Server not configured. Call initialize with PostgreSQL connection details first."
-                    }
-                ]
+                Content = [new Content { Type = "text", Text = ex.Message }]
             };
         }
-
-        logger.LogInformation("Calling tool: {ToolName}", callParams.Name);
-
-        return callParams.Name switch
+        catch (Exception ex)
         {
-            "scan_database_structure" => await ExecuteScanDatabaseAsync(callParams.Arguments,
-                connectionBuilder, schemaService, cancellationToken),
-            "query_database" => await ExecuteQueryDatabaseAsync(callParams.Arguments,
-                connectionBuilder, queryService, cancellationToken),
-            _ => new CallToolResult
+            logger.LogError(ex, "Tool execution error");
+            return new CallToolResult
             {
                 IsError = true,
-                Content = [new Content { Type = "text", Text = $"Unknown tool: {callParams.Name}" }]
-            }
-        };
+                Content = [new Content { Type = "text", Text = $"Tool execution error: {ex.Message}" }]
+            };
+        }
     }
 
     private static async Task<object> HandleResourcesListAsync(
@@ -587,7 +613,7 @@ public static class McpProtocolEndpoints
         {
             name = "PostgreSQL MCP Server",
             version = "2.0.0",
-            protocolVersion = "2024-11-05",
+            protocolVersion = "2025-11-25",
             description = "Read-only Model Context Protocol server for PostgreSQL database operations",
             capabilities = new
             {
