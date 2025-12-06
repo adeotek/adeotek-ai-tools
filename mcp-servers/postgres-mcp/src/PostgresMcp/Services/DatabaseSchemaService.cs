@@ -332,8 +332,9 @@ public class DatabaseSchemaService(
             var result = await cmd.ExecuteScalarAsync(cancellationToken);
             return result as long?;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning(ex, "Failed to get row count for {Schema}.{Table}", schemaName, tableName);
             return null;
         }
     }
