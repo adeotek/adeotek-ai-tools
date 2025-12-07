@@ -1,4 +1,4 @@
-# Adeotek SQL MCP Server
+# Adeotek SQL Local MCP Server
 
 A production-ready Model Context Protocol (MCP) server providing read-only access to SQL databases (Microsoft SQL Server and PostgreSQL). Built with security-first design principles and comprehensive safety mechanisms.
 
@@ -16,14 +16,14 @@ A production-ready Model Context Protocol (MCP) server providing read-only acces
 ## Installation
 
 ```bash
-npm install adeotek-sql-mcp
+npm install adeotek-mcp-stdio-sql
 ```
 
 Or install from source:
 
 ```bash
 git clone https://github.com/adeotek/adeotek-ai-tools.git
-cd adeotek-ai-tools/adeotek-sql-mcp
+cd adeotek-ai-tools/adeotek-mcp-stdio-sql
 npm install
 npm run build
 ```
@@ -268,10 +268,10 @@ Add to your Claude Desktop configuration (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "adeotek-sql-mcp": {
+    "adeotek-mcp-stdio-sql": {
       "command": "node",
       "args": [
-        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "/path/to/adeotek-mcp-stdio-sql/dist/index.js",
         "--default",
         "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
       ]
@@ -285,10 +285,10 @@ For multiple connections:
 ```json
 {
   "mcpServers": {
-    "adeotek-sql-mcp": {
+    "adeotek-mcp-stdio-sql": {
       "command": "node",
       "args": [
-        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "/path/to/adeotek-mcp-stdio-sql/dist/index.js",
         "--postgres",
         "type=postgres;host=localhost;port=5432;user=pguser;password=pgpass",
         "--mssql",
@@ -306,11 +306,11 @@ Add to your `mcp.json` configuration:
 ```json
 {
   "servers": {
-    "adeotek-sql-mcp": {
+    "adeotek-mcp-stdio-sql": {
       "type": "stdio",
       "command": "node",
       "args": [
-        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "/path/to/adeotek-mcp-stdio-sql/dist/index.js",
         "--default",
         "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
       ]
@@ -325,10 +325,10 @@ Alternatively, use environment variables:
 ```json
 {
   "servers": {
-    "adeotek-sql-mcp": {
+    "adeotek-mcp-stdio-sql": {
       "type": "stdio",
       "command": "node",
-      "args": ["/path/to/adeotek-sql-mcp/dist/index.js"],
+      "args": ["/path/to/adeotek-mcp-stdio-sql/dist/index.js"],
       "env": {
         "SQL_CONNECTION_DEFAULT": "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
       }
@@ -341,7 +341,7 @@ Alternatively, use environment variables:
 ### Programmatic Usage
 
 ```typescript
-import { AdeoSqlMcpServer } from 'adeotek-sql-mcp';
+import { AdeoSqlMcpServer } from 'adeotek-mcp-stdio-sql';
 
 const connections = new Map<string, string>();
 connections.set('default', 'type=postgres;host=localhost;port=5432;user=myuser;password=mypass');
@@ -396,7 +396,7 @@ The following operations are strictly blocked:
 ```bash
 # Clone repository
 git clone https://github.com/adeotek/adeotek-ai-tools.git
-cd adeotek-ai-tools/adeotek-sql-mcp
+cd adeotek-ai-tools/adeotek-mcp-stdio-sql
 
 # Install dependencies
 npm install
@@ -418,7 +418,7 @@ npm run format
 ### Project Structure
 
 ```
-adeotek-sql-mcp/
+adeotek-mcp-stdio-sql/
 ├── src/
 │   ├── index.ts              # Entry point
 │   ├── server.ts             # MCP server implementation
@@ -518,7 +518,7 @@ MIT License - see LICENSE file for details
 ## Support
 
 - **Issues**: https://github.com/adeotek/adeotek-ai-tools/issues
-- **Documentation**: https://github.com/adeotek/adeotek-ai-tools/tree/main/adeotek-sql-mcp
+- **Documentation**: https://github.com/adeotek/adeotek-ai-tools/tree/main/adeotek-mcp-stdio-sql
 - **MCP Specification**: https://modelcontextprotocol.io/
 
 ## Acknowledgments

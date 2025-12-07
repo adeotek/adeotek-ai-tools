@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="compose.yaml" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Adeotek.Mcp.Http.Sql.AppHost/Adeotek.Mcp.Http.Sql.AppHost.csproj" />
+    <Project Path="src/Adeotek.Mcp.Http.Sql.ServiceDefaults/Adeotek.Mcp.Http.Sql.ServiceDefaults.csproj" />
+    <Project Path="src/Adeotek.Mcp.Http.Sql/Adeotek.Mcp.Http.Sql.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>

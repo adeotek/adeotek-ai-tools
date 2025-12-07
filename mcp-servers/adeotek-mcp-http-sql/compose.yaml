@@ -1,0 +1,9 @@
+﻿---
+services:
+
+  adeotek-mcp-http-sql:
+    image: adeotek-mcp-http-sql
+    build:
+      context: .
+      dockerfile: src/Adeotek.Mcp.Http.Sql/Dockerfile
+
