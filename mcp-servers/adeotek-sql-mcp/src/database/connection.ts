@@ -16,14 +16,20 @@ export type DatabaseConnection = PostgresDatabase | MssqlDatabase;
 export function parseConnectionString(connectionString: string): DatabaseConfig {
   const config: Partial<DatabaseConfig> = {};
 
+  logger.debug('Parsing connection string', {
+    connectionStringLength: connectionString.length,
+  });
+
   // Try parsing as connection string format
   const params = connectionString.split(';').filter((p) => p.trim().length > 0);
 
   for (const param of params) {
-    const [key, value] = param.split('=').map((s) => s.trim());
-    if (!key || !value) continue;
+    const [key, ...valueParts] = param.split('=');
+    const value = valueParts.join('=').trim(); // Rejoin in case value contains '='
+    const trimmedKey = key.trim();
+    if (!trimmedKey || !value) continue;
 
-    const lowerKey = key.toLowerCase();
+    const lowerKey = trimmedKey.toLowerCase();
 
     switch (lowerKey) {
       case 'type':
@@ -87,6 +93,22 @@ export function parseConnectionString(connectionString: string): DatabaseConfig 
   if (!config.port) {
     config.port = config.type === 'mssql' ? 1433 : 5432;
   }
+
+  // Default to system database if not specified
+  // This allows the MCP server to list databases and work with any database
+  if (!config.database) {
+    config.database = config.type === 'mssql' ? 'master' : 'postgres';
+  }
+
+  logger.debug('Connection string parsed', {
+    type: config.type,
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    passwordLength: config.password?.length,
+    database: config.database,
+    ssl: config.ssl,
+  });
 
   return config as DatabaseConfig;
 }

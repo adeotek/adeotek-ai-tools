@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(timeout 10 npx:*)",
+      "Bash(npm test)",
+      "Bash(npm install:*)",
+      "Bash(timeout 5 node:*)",
+      "Bash(SQL_CONNECTION_DEFAULT=\"type=postgres;host=localhost;port=5432;user=test;password=test\" timeout 5 node:*)",
+      "Bash(node dist/index.js:*)",
+      "Bash(LOG_LEVEL=debug timeout 10 node:*)",
+      "Bash(LOG_LEVEL=debug timeout 5 node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

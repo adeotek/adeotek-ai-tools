@@ -21,8 +21,11 @@ import { handleError } from './utils/errors.js';
 export class AdeoSqlMcpServer {
   private server: Server;
   private connections: Map<string, DatabaseConnection> = new Map();
+  private connectionStrings: Map<string, string>;
 
-  constructor() {
+  constructor(connectionStrings: Map<string, string>) {
+    this.connectionStrings = connectionStrings;
+
     this.server = new Server(
       {
         name: 'adeotek-sql-mcp',
@@ -53,13 +56,13 @@ export class AdeoSqlMcpServer {
             inputSchema: {
               type: 'object',
               properties: {
-                connectionString: {
+                connection: {
                   type: 'string',
                   description:
-                    'Database connection string (e.g., "type=postgres;host=localhost;port=5432;user=user;password=pass;database=mydb")',
+                    'Connection name (optional, defaults to "default" or the only configured connection)',
                 },
               },
-              required: ['connectionString'],
+              required: [],
             },
           },
           {
@@ -68,20 +71,21 @@ export class AdeoSqlMcpServer {
             inputSchema: {
               type: 'object',
               properties: {
-                connectionString: {
-                  type: 'string',
-                  description: 'Database connection string',
-                },
                 database: {
                   type: 'string',
                   description: 'Database name',
                 },
                 schema: {
                   type: 'string',
-                  description: 'Schema name (optional, defaults to "public" for PostgreSQL or "dbo" for SQL Server)',
+                  description:
+                    'Schema name (optional, defaults to "public" for PostgreSQL or "dbo" for SQL Server)',
+                },
+                connection: {
+                  type: 'string',
+                  description: 'Connection name (optional)',
                 },
               },
-              required: ['connectionString', 'database'],
+              required: ['database'],
             },
           },
           {
@@ -91,10 +95,6 @@ export class AdeoSqlMcpServer {
             inputSchema: {
               type: 'object',
               properties: {
-                connectionString: {
-                  type: 'string',
-                  description: 'Database connection string',
-                },
                 database: {
                   type: 'string',
                   description: 'Database name',
@@ -107,8 +107,12 @@ export class AdeoSqlMcpServer {
                   type: 'string',
                   description: 'Schema name (optional)',
                 },
+                connection: {
+                  type: 'string',
+                  description: 'Connection name (optional)',
+                },
               },
-              required: ['connectionString', 'database', 'table'],
+              required: ['database', 'table'],
             },
           },
           {
@@ -118,10 +122,6 @@ export class AdeoSqlMcpServer {
             inputSchema: {
               type: 'object',
               properties: {
-                connectionString: {
-                  type: 'string',
-                  description: 'Database connection string',
-                },
                 database: {
                   type: 'string',
                   description: 'Database name',
@@ -135,8 +135,12 @@ export class AdeoSqlMcpServer {
                   description: 'Maximum rows to return (default: 1000, max: 10000)',
                   default: 1000,
                 },
+                connection: {
+                  type: 'string',
+                  description: 'Connection name (optional)',
+                },
               },
-              required: ['connectionString', 'database', 'query'],
+              required: ['database', 'query'],
             },
           },
           {
@@ -146,10 +150,6 @@ export class AdeoSqlMcpServer {
             inputSchema: {
               type: 'object',
               properties: {
-                connectionString: {
-                  type: 'string',
-                  description: 'Database connection string',
-                },
                 database: {
                   type: 'string',
                   description: 'Database name',
@@ -158,8 +158,12 @@ export class AdeoSqlMcpServer {
                   type: 'string',
                   description: 'SQL SELECT statement to analyze',
                 },
+                connection: {
+                  type: 'string',
+                  description: 'Connection name (optional)',
+                },
               },
-              required: ['connectionString', 'database', 'query'],
+              required: ['database', 'query'],
             },
           },
         ],
@@ -173,9 +177,9 @@ export class AdeoSqlMcpServer {
       try {
         logger.info('Tool call received', { tool: name });
 
-        // Get or create connection
-        const connectionString = (args?.connectionString as string) || '';
-        const connection = await this.getConnection(connectionString);
+        // Get pre-configured connection (optional parameter, defaults to 'default' or first connection)
+        const connectionName = (args?.connection as string) || undefined;
+        const connection = await this.getConnection(connectionName);
 
         let result;
 
@@ -339,26 +343,74 @@ export class AdeoSqlMcpServer {
   }
 
   /**
-   * Get or create a database connection
+   * Get a pre-configured database connection by name
    */
-  private async getConnection(connectionString: string): Promise<DatabaseConnection> {
-    if (!this.connections.has(connectionString)) {
-      const connection = await createConnection(connectionString);
-      this.connections.set(connectionString, connection);
+  private async getConnection(connectionName?: string): Promise<DatabaseConnection> {
+    // Default to 'default' or the first configured connection
+    const name = connectionName || 'default';
+    let actualName = name;
+
+    // If the requested connection doesn't exist, try to use the first available one
+    if (!this.connectionStrings.has(actualName)) {
+      if (this.connectionStrings.size === 1) {
+        // Only one connection configured, use it
+        actualName = Array.from(this.connectionStrings.keys())[0];
+        logger.debug(`Connection '${name}' not found, using '${actualName}'`);
+      } else {
+        throw new Error(
+          `Connection '${name}' not configured. Available connections: ${Array.from(
+            this.connectionStrings.keys()
+          ).join(', ')}`
+        );
+      }
     }
-    return this.connections.get(connectionString)!;
+
+    // Create connection if not already created
+    if (!this.connections.has(actualName)) {
+      const connectionString = this.connectionStrings.get(actualName)!;
+      logger.info(`Creating connection '${actualName}'`);
+      const connection = await createConnection(connectionString);
+      this.connections.set(actualName, connection);
+    }
+
+    return this.connections.get(actualName)!;
+  }
+
+  /**
+   * Initialize all configured database connections
+   */
+  private async initializeConnections(): Promise<void> {
+    logger.info('Initializing database connections', {
+      count: this.connectionStrings.size,
+      names: Array.from(this.connectionStrings.keys()),
+    });
+
+    for (const [name, connectionString] of this.connectionStrings.entries()) {
+      try {
+        const connection = await createConnection(connectionString);
+        this.connections.set(name, connection);
+        logger.info(`Connection '${name}' initialized successfully`);
+      } catch (error) {
+        logger.error(`Failed to initialize connection '${name}'`, { error });
+        throw error;
+      }
+    }
   }
 
   /**
    * Start the MCP server
    */
   async start(): Promise<void> {
+    // Initialize all database connections
+    await this.initializeConnections();
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
     logger.info('adeotek-sql-mcp server started', {
       protocol: '2025-11-25',
       transport: 'stdio',
+      connections: Array.from(this.connections.keys()),
     });
 
     // Handle graceful shutdown
@@ -380,12 +432,13 @@ export class AdeoSqlMcpServer {
     logger.info('Shutting down adeotek-sql-mcp server');
 
     // Close all database connections
-    for (const [connectionString, connection] of this.connections.entries()) {
+    for (const [connectionName, connection] of this.connections.entries()) {
       try {
         await closeConnection(connection);
-        this.connections.delete(connectionString);
+        this.connections.delete(connectionName);
+        logger.info(`Connection '${connectionName}' closed`);
       } catch (error) {
-        logger.error('Error closing connection', { error });
+        logger.error(`Error closing connection '${connectionName}'`, { error });
       }
     }
 

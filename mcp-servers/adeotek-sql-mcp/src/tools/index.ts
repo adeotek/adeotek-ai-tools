@@ -153,7 +153,7 @@ export async function executeQuery(
     const finalQuery = limitedQuery.query;
 
     // Execute query
-    const result = await connection.executeQuery(finalQuery);
+    const result = await connection.executeQuery(database, finalQuery);
 
     return {
       success: true,
@@ -196,7 +196,7 @@ export async function getQueryPlan(
     validateQueryOrThrow(query);
 
     // Get query plan
-    const plan = await connection.getQueryPlan(query);
+    const plan = await connection.getQueryPlan(database, query);
 
     return {
       success: true,

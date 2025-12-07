@@ -20,7 +20,8 @@ export const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'adeotek-sql-mcp' },
   transports: [
-    new winston.transports.Console({
+    new winston.transports.Stream({
+      stream: process.stderr, // MCP stdio transport requires logs to go to stderr, not stdout
       format: isDevelopment
         ? winston.format.combine(
             winston.format.colorize(),

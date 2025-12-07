@@ -32,15 +32,27 @@ npm run build
 
 ### Starting the Server
 
+The server requires at least one database connection to be configured at startup. You can provide connection strings via command-line arguments or environment variables.
+
+**Command-Line Arguments**:
 ```bash
-npm start
+# Single connection (named 'default')
+node dist/index.js --default "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
+
+# Multiple named connections
+node dist/index.js --postgres "type=postgres;host=localhost;..." --mssql "type=mssql;host=localhost;..."
 ```
 
-The server uses stdio transport and can be integrated with MCP clients like Claude Desktop, Continue, or custom integrations.
+**Environment Variables**:
+```bash
+# Set connection via environment variable
+export SQL_CONNECTION_DEFAULT="type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
+node dist/index.js
+```
 
-### Configuration
+The server uses stdio transport and integrates with MCP clients like Claude Desktop, VS Code, or custom integrations.
 
-Connection strings are provided at runtime through tool calls. Format:
+### Connection String Format
 
 **PostgreSQL**:
 ```
@@ -52,6 +64,17 @@ type=postgres;host=localhost;port=5432;user=myuser;password=mypass;database=mydb
 type=mssql;host=localhost;port=1433;user=sa;password=StrongPass123;database=master;ssl=true
 ```
 
+**Supported Keys**:
+- `type`: "postgres" or "mssql" (required)
+- `host`/`server`: Database server host (required)
+- `port`: Port number (default: 5432 for PostgreSQL, 1433 for SQL Server)
+- `user`/`username`: Database user (required)
+- `password`/`pwd`: Database password (required)
+- `database`: Database name (optional, defaults to "postgres" for PostgreSQL or "master" for SQL Server)
+- `ssl`/`encrypt`: Enable SSL/TLS (true/false)
+
+**Note**: If you don't specify a database, the server will connect to the system database (`postgres` or `master`) by default. You can then specify the target database in individual tool calls, or list all available databases using the `sql_list_databases` tool.
+
 ## MCP Tools
 
 ### 1. sql_list_databases
@@ -61,9 +84,11 @@ List all databases available on the configured server.
 **Input**:
 ```json
 {
-  "connectionString": "type=postgres;host=localhost;port=5432;user=user;password=pass"
+  "connection": "default"
 }
 ```
+
+Note: The `connection` parameter is optional. If omitted, uses the "default" connection or the only configured connection.
 
 **Output**:
 ```json
@@ -87,11 +112,13 @@ List all tables in a specified database with metadata.
 **Input**:
 ```json
 {
-  "connectionString": "type=postgres;host=localhost;...",
   "database": "mydb",
-  "schema": "public"
+  "schema": "public",
+  "connection": "postgres"
 }
 ```
+
+Note: The `connection` and `schema` parameters are optional.
 
 **Output**:
 ```json
@@ -116,12 +143,14 @@ Get detailed schema information for a specific table.
 **Input**:
 ```json
 {
-  "connectionString": "type=postgres;host=localhost;...",
   "database": "mydb",
   "table": "users",
-  "schema": "public"
+  "schema": "public",
+  "connection": "default"
 }
 ```
+
+Note: The `connection` and `schema` parameters are optional.
 
 **Output**:
 ```json
@@ -153,12 +182,14 @@ Execute a read-only SELECT query with automatic safety validation.
 **Input**:
 ```json
 {
-  "connectionString": "type=postgres;host=localhost;...",
   "database": "mydb",
   "query": "SELECT id, name, email FROM users WHERE created_at > '2024-01-01' LIMIT 100",
-  "maxRows": 1000
+  "maxRows": 1000,
+  "connection": "default"
 }
 ```
+
+Note: The `connection` and `maxRows` parameters are optional (maxRows defaults to 1000, max 10000).
 
 **Output**:
 ```json
@@ -182,11 +213,13 @@ Get the execution plan for a query without executing it.
 **Input**:
 ```json
 {
-  "connectionString": "type=postgres;host=localhost;...",
   "database": "mydb",
-  "query": "SELECT * FROM users WHERE email LIKE '%@example.com%'"
+  "query": "SELECT * FROM users WHERE email LIKE '%@example.com%'",
+  "connection": "default"
 }
 ```
+
+Note: The `connection` parameter is optional.
 
 **Output**:
 ```json
@@ -237,25 +270,71 @@ Add to your Claude Desktop configuration (`claude_desktop_config.json`):
   "mcpServers": {
     "adeotek-sql-mcp": {
       "command": "node",
-      "args": ["/path/to/adeotek-sql-mcp/dist/index.js"]
+      "args": [
+        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "--default",
+        "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
+      ]
     }
   }
 }
 ```
 
-### VS Code with Continue
-
-Add to your Continue configuration:
+For multiple connections:
 
 ```json
 {
-  "mcpServers": [
-    {
-      "name": "adeotek-sql-mcp",
+  "mcpServers": {
+    "adeotek-sql-mcp": {
       "command": "node",
-      "args": ["/path/to/adeotek-sql-mcp/dist/index.js"]
+      "args": [
+        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "--postgres",
+        "type=postgres;host=localhost;port=5432;user=pguser;password=pgpass",
+        "--mssql",
+        "type=mssql;host=localhost;port=1433;user=sa;password=sqlpass"
+      ]
     }
-  ]
+  }
+}
+```
+
+### VS Code
+
+Add to your `mcp.json` configuration:
+
+```json
+{
+  "servers": {
+    "adeotek-sql-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/path/to/adeotek-sql-mcp/dist/index.js",
+        "--default",
+        "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
+      ]
+    }
+  },
+  "inputs": []
+}
+```
+
+Alternatively, use environment variables:
+
+```json
+{
+  "servers": {
+    "adeotek-sql-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/path/to/adeotek-sql-mcp/dist/index.js"],
+      "env": {
+        "SQL_CONNECTION_DEFAULT": "type=postgres;host=localhost;port=5432;user=myuser;password=mypass"
+      }
+    }
+  },
+  "inputs": []
 }
 ```
 
@@ -264,7 +343,11 @@ Add to your Continue configuration:
 ```typescript
 import { AdeoSqlMcpServer } from 'adeotek-sql-mcp';
 
-const server = new AdeoSqlMcpServer();
+const connections = new Map<string, string>();
+connections.set('default', 'type=postgres;host=localhost;port=5432;user=myuser;password=mypass');
+connections.set('mssql', 'type=mssql;host=localhost;port=1433;user=sa;password=sqlpass');
+
+const server = new AdeoSqlMcpServer(connections);
 await server.start();
 ```
 
@@ -437,17 +520,6 @@ MIT License - see LICENSE file for details
 - **Issues**: https://github.com/adeotek/adeotek-ai-tools/issues
 - **Documentation**: https://github.com/adeotek/adeotek-ai-tools/tree/main/adeotek-sql-mcp
 - **MCP Specification**: https://modelcontextprotocol.io/
-
-## Roadmap
-
-- [ ] MySQL support
-- [ ] SQLite support
-- [ ] Query result caching
-- [ ] Connection pooling optimization
-- [ ] Streaming for large result sets
-- [ ] Advanced schema analysis
-- [ ] Query cost estimation
-- [ ] Real-time query monitoring
 
 ## Acknowledgments
 

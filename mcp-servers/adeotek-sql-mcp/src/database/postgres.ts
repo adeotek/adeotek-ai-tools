@@ -23,6 +23,7 @@ const { Pool } = pg;
 export class PostgresDatabase {
   private pool: pg.Pool | null = null;
   private config: DatabaseConfig;
+  private temporaryPools: Map<string, pg.Pool> = new Map();
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -33,6 +34,14 @@ export class PostgresDatabase {
    */
   async connect(): Promise<void> {
     try {
+      logger.debug('Attempting PostgreSQL connection', {
+        host: this.config.host,
+        port: this.config.port,
+        user: this.config.user,
+        database: this.config.database,
+        ssl: this.config.ssl,
+      });
+
       this.pool = new Pool({
         host: this.config.host,
         port: this.config.port,
@@ -46,6 +55,7 @@ export class PostgresDatabase {
       });
 
       // Test connection
+      logger.debug('Testing PostgreSQL connection...');
       const client = await this.pool.connect();
       await client.query('SELECT 1');
       client.release();
@@ -56,8 +66,24 @@ export class PostgresDatabase {
         database: this.config.database,
       });
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorCode = (error as any)?.code;
+      const errorDetail = (error as any)?.detail;
+
+      logger.error('PostgreSQL connection failed', {
+        host: this.config.host,
+        port: this.config.port,
+        user: this.config.user,
+        database: this.config.database,
+        errorMessage,
+        errorCode,
+        errorDetail,
+        error,
+      });
+
       throw new DatabaseConnectionError(
-        `Failed to connect to PostgreSQL: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to connect to PostgreSQL at ${this.config.host}:${this.config.port}: ${errorMessage}${errorCode ? ` (code: ${errorCode})` : ''}`,
         'postgres'
       );
     }
@@ -67,11 +93,69 @@ export class PostgresDatabase {
    * Close connection pool
    */
   async disconnect(): Promise<void> {
+    // Close all temporary pools
+    for (const [dbName, pool] of this.temporaryPools.entries()) {
+      try {
+        await pool.end();
+        logger.debug(`Temporary pool for database '${dbName}' closed`);
+      } catch (error) {
+        logger.error(`Error closing temporary pool for '${dbName}'`, { error });
+      }
+    }
+    this.temporaryPools.clear();
+
+    // Close main pool
     if (this.pool) {
       await this.pool.end();
       this.pool = null;
       logger.info('PostgreSQL connection closed');
     }
+  }
+
+  /**
+   * Get or create a connection pool for a specific database
+   */
+  private async getPoolForDatabase(database: string): Promise<pg.Pool> {
+    // If querying the same database as our main connection, use main pool
+    if (database === this.config.database) {
+      return this.pool!;
+    }
+
+    // Check if we already have a temporary pool for this database
+    if (this.temporaryPools.has(database)) {
+      return this.temporaryPools.get(database)!;
+    }
+
+    // Create a new temporary pool for this database
+    logger.debug(`Creating temporary pool for database '${database}'`);
+    const tempPool = new Pool({
+      host: this.config.host,
+      port: this.config.port,
+      user: this.config.user,
+      password: this.config.password,
+      database: database, // Connect to the target database
+      connectionTimeoutMillis: (this.config.connectionTimeout || 30) * 1000,
+      max: 5, // Smaller pool for temporary connections
+      idleTimeoutMillis: 30000,
+      ssl: this.config.ssl ? { rejectUnauthorized: false } : false,
+    });
+
+    // Test the connection
+    try {
+      const client = await tempPool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      logger.debug(`Temporary pool for database '${database}' established`);
+    } catch (error) {
+      await tempPool.end();
+      throw new DatabaseConnectionError(
+        `Failed to connect to database '${database}': ${error instanceof Error ? error.message : String(error)}`,
+        'postgres'
+      );
+    }
+
+    this.temporaryPools.set(database, tempPool);
+    return tempPool;
   }
 
   /**
@@ -110,23 +194,46 @@ export class PostgresDatabase {
   /**
    * List all tables in a database
    */
-  async listTables(database: string, schema: string = 'public'): Promise<TableInfo[]> {
+  async listTables(database: string, schema?: string): Promise<TableInfo[]> {
     this.ensureConnected();
 
-    const query = `
-      SELECT
-        table_schema as schema,
-        table_name as name,
-        table_type as type,
-        pg_relation_size(quote_ident(table_schema) || '.' || quote_ident(table_name)) as size
-      FROM information_schema.tables
-      WHERE table_schema = $1
-        AND table_catalog = $2
-      ORDER BY table_name;
-    `;
+    // Get the appropriate pool for the target database
+    const pool = await this.getPoolForDatabase(database);
+
+    // Build query based on whether schema is specified
+    let query: string;
+    let params: any[];
+
+    if (schema) {
+      // List tables from specific schema
+      query = `
+        SELECT
+          table_schema as schema,
+          table_name as name,
+          table_type as type,
+          pg_relation_size(quote_ident(table_schema) || '.' || quote_ident(table_name)) as size
+        FROM information_schema.tables
+        WHERE table_schema = $1
+        ORDER BY table_name;
+      `;
+      params = [schema];
+    } else {
+      // List tables from all user schemas (exclude system schemas)
+      query = `
+        SELECT
+          table_schema as schema,
+          table_name as name,
+          table_type as type,
+          pg_relation_size(quote_ident(table_schema) || '.' || quote_ident(table_name)) as size
+        FROM information_schema.tables
+        WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+        ORDER BY table_schema, table_name;
+      `;
+      params = [];
+    }
 
     try {
-      const result = await this.pool!.query(query, [schema, database]);
+      const result = await pool.query(query, params);
       return result.rows.map((row) => ({
         schema: row.schema,
         name: row.name,
@@ -135,7 +242,7 @@ export class PostgresDatabase {
       }));
     } catch (error) {
       throw new QueryExecutionError(
-        `Failed to list tables: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to list tables in database '${database}': ${error instanceof Error ? error.message : String(error)}`,
         query
       );
     }
@@ -151,11 +258,14 @@ export class PostgresDatabase {
   ): Promise<TableSchema> {
     this.ensureConnected();
 
+    // Get the appropriate pool for the target database
+    const pool = await this.getPoolForDatabase(database);
+
     const [columns, indexes, foreignKeys, constraints] = await Promise.all([
-      this.getColumns(database, tableName, schema),
-      this.getIndexes(database, tableName, schema),
-      this.getForeignKeys(database, tableName, schema),
-      this.getConstraints(database, tableName, schema),
+      this.getColumns(pool, tableName, schema),
+      this.getIndexes(pool, tableName, schema),
+      this.getForeignKeys(pool, tableName, schema),
+      this.getConstraints(pool, tableName, schema),
     ]);
 
     const primaryKey = columns.filter((col) => col.isPrimaryKey).map((col) => col.name);
@@ -174,16 +284,23 @@ export class PostgresDatabase {
   /**
    * Execute a SELECT query
    */
-  async executeQuery(query: string, timeout: number = 30): Promise<QueryResult> {
+  async executeQuery(
+    database: string,
+    query: string,
+    timeout: number = 30
+  ): Promise<QueryResult> {
     this.ensureConnected();
+
+    // Get the appropriate pool for the target database
+    const pool = await this.getPoolForDatabase(database);
 
     const startTime = Date.now();
 
     try {
       // Set statement timeout
-      await this.pool!.query(`SET statement_timeout = ${timeout * 1000}`);
+      await pool.query(`SET statement_timeout = ${timeout * 1000}`);
 
-      const result = await this.pool!.query(query);
+      const result = await pool.query(query);
       const executionTimeMs = Date.now() - startTime;
 
       return {
@@ -197,12 +314,12 @@ export class PostgresDatabase {
         throw new TimeoutError(`Query execution timeout after ${timeout}s`, timeout * 1000);
       }
       throw new QueryExecutionError(
-        `Failed to execute query: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to execute query in database '${database}': ${error instanceof Error ? error.message : String(error)}`,
         query
       );
     } finally {
       // Reset timeout
-      await this.pool!.query('RESET statement_timeout').catch(() => {
+      await pool.query('RESET statement_timeout').catch(() => {
         /* ignore */
       });
     }
@@ -211,13 +328,16 @@ export class PostgresDatabase {
   /**
    * Get query execution plan
    */
-  async getQueryPlan(query: string): Promise<QueryPlan> {
+  async getQueryPlan(database: string, query: string): Promise<QueryPlan> {
     this.ensureConnected();
+
+    // Get the appropriate pool for the target database
+    const pool = await this.getPoolForDatabase(database);
 
     const explainQuery = `EXPLAIN (FORMAT JSON, ANALYZE false) ${query}`;
 
     try {
-      const result = await this.pool!.query(explainQuery);
+      const result = await pool.query(explainQuery);
       const planJson = result.rows[0]['QUERY PLAN'];
 
       return {
@@ -227,7 +347,7 @@ export class PostgresDatabase {
       };
     } catch (error) {
       throw new QueryExecutionError(
-        `Failed to get query plan: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get query plan in database '${database}': ${error instanceof Error ? error.message : String(error)}`,
         explainQuery
       );
     }
@@ -242,7 +362,7 @@ export class PostgresDatabase {
   }
 
   private async getColumns(
-    _database: string,
+    pool: pg.Pool,
     tableName: string,
     schema: string
   ): Promise<ColumnInfo[]> {
@@ -278,11 +398,10 @@ export class PostgresDatabase {
       ) fk ON c.column_name = fk.column_name
       WHERE c.table_schema = $1
         AND c.table_name = $2
-        AND c.table_catalog = $3
       ORDER BY c.ordinal_position;
     `;
 
-    const result = await this.pool!.query(query, [schema, tableName, _database]);
+    const result = await pool.query(query, [schema, tableName]);
     return result.rows.map((row) => ({
       name: row.name,
       type: row.type,
@@ -297,7 +416,7 @@ export class PostgresDatabase {
   }
 
   private async getIndexes(
-    _database: string,
+    pool: pg.Pool,
     tableName: string,
     schema: string
   ): Promise<IndexInfo[]> {
@@ -320,7 +439,7 @@ export class PostgresDatabase {
       ORDER BY i.relname;
     `;
 
-    const result = await this.pool!.query(query, [schema, tableName]);
+    const result = await pool.query(query, [schema, tableName]);
     return result.rows.map((row) => ({
       name: row.index_name,
       columns: row.column_names,
@@ -331,7 +450,7 @@ export class PostgresDatabase {
   }
 
   private async getForeignKeys(
-    _database: string,
+    pool: pg.Pool,
     tableName: string,
     schema: string
   ): Promise<ForeignKeyInfo[]> {
@@ -358,7 +477,7 @@ export class PostgresDatabase {
       ORDER BY tc.constraint_name;
     `;
 
-    const result = await this.pool!.query(query, [schema, tableName]);
+    const result = await pool.query(query, [schema, tableName]);
     return result.rows.map((row) => ({
       name: row.name,
       columns: row.columns,
@@ -371,7 +490,7 @@ export class PostgresDatabase {
   }
 
   private async getConstraints(
-    _database: string,
+    pool: pg.Pool,
     tableName: string,
     schema: string
   ): Promise<ConstraintInfo[]> {
@@ -389,7 +508,7 @@ export class PostgresDatabase {
       ORDER BY tc.constraint_type, tc.constraint_name;
     `;
 
-    const result = await this.pool!.query(query, [schema, tableName]);
+    const result = await pool.query(query, [schema, tableName]);
     return result.rows.map((row) => ({
       name: row.name,
       type: row.type as ConstraintInfo['type'],

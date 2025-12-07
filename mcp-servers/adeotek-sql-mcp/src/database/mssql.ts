@@ -186,7 +186,11 @@ export class MssqlDatabase {
   /**
    * Execute a SELECT query
    */
-  async executeQuery(query: string, _timeout: number = 30): Promise<QueryResult> {
+  async executeQuery(
+    database: string,
+    query: string,
+    _timeout: number = 30
+  ): Promise<QueryResult> {
     this.ensureConnected();
 
     const startTime = Date.now();
@@ -194,6 +198,9 @@ export class MssqlDatabase {
     try {
       const request = this.pool!.request();
       // Note: timeout is configured at connection level in config.options.requestTimeout
+
+      // Switch to target database
+      await request.query(`USE [${database}]`);
 
       const result = await request.query(query);
       const executionTimeMs = Date.now() - startTime;
@@ -215,7 +222,7 @@ export class MssqlDatabase {
         throw new TimeoutError(`Query execution timeout after ${_timeout}s`, _timeout * 1000);
       }
       throw new QueryExecutionError(
-        `Failed to execute query: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to execute query in database '${database}': ${error instanceof Error ? error.message : String(error)}`,
         query
       );
     }
@@ -224,10 +231,13 @@ export class MssqlDatabase {
   /**
    * Get query execution plan
    */
-  async getQueryPlan(query: string): Promise<QueryPlan> {
+  async getQueryPlan(database: string, query: string): Promise<QueryPlan> {
     this.ensureConnected();
 
     try {
+      // Switch to target database
+      await this.pool!.request().query(`USE [${database}]`);
+
       // Enable SHOWPLAN_XML
       await this.pool!.request().query('SET SHOWPLAN_XML ON');
 
@@ -248,7 +258,7 @@ export class MssqlDatabase {
       });
 
       throw new QueryExecutionError(
-        `Failed to get query plan: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get query plan in database '${database}': ${error instanceof Error ? error.message : String(error)}`,
         query
       );
     }
