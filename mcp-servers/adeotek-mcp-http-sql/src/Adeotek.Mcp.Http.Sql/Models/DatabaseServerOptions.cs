@@ -1,7 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
-using Npgsql;
-
-namespace Adeotek.Mcp.Http.Sql.Models;
+﻿namespace Adeotek.Mcp.Http.Sql.Models;
 
 public enum DatabaseServerType
 {
@@ -65,6 +62,21 @@ public class DatabaseServerOptions
     public int MinPoolSize { get; set; }
 
     /// <summary>
+    /// Maximum number of rows to return in a single query.
+    /// </summary>
+    public int MaxRowsPerQuery { get; set; } = 10000;
+
+    /// <summary>
+    /// List of blocked schemas.
+    /// </summary>
+    public string[] BlockedSchemas { get; set; } = ["pg_catalog", "information_schema"];
+
+    /// <summary>
+    /// List of blocked tables (regex patterns).
+    /// </summary>
+    public string[] BlockedTables { get; set; } = [];
+
+    /// <summary>
     /// Whether to log SQL queries.
     /// </summary>
     public bool LogQueries { get; set; }
@@ -78,39 +90,4 @@ public class DatabaseServerOptions
         !string.IsNullOrEmpty(Type) && Enum.TryParse<DatabaseServerType>(Type, true, out var dbType)
             ? dbType
             : throw new InvalidOperationException($"Unsupported Database Server Type: {Type}");
-
-    public string GetConnectionStringForDatabase(string? databaseName)
-    {
-        if (string.IsNullOrEmpty(ConnectionString))
-        {
-            throw new InvalidOperationException("ConnectionString is not configured.");
-        }
-
-        string connectionString;
-        switch (DbServerType)
-        {
-            case DatabaseServerType.Postgres:
-                var pgConnectionBuilder = new NpgsqlConnectionStringBuilder(ConnectionString)
-                {
-                    Database = string.IsNullOrEmpty(databaseName)
-                        ? "postgres"
-                        : databaseName
-                };
-                connectionString = pgConnectionBuilder.ToString();
-                break;
-            case DatabaseServerType.MsSql:
-                var msConnectionBuilder = new SqlConnectionStringBuilder(ConnectionString)
-                {
-                    InitialCatalog = string.IsNullOrEmpty(databaseName)
-                        ? "master"
-                        : databaseName
-                };
-                connectionString = msConnectionBuilder.ToString();
-                break;
-            default:
-                throw new InvalidOperationException($"Unsupported Database Server Type: {DbServerType}");
-        }
-
-        return connectionString;
-    }
 }
