@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  adeotek-sql-net-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adeotek-sql-net-mcp
+    environment:
+      - LOG_LEVEL=Information
+    stdin_open: true
+    tty: true
+    networks:
+      - mcp-network
+
+  # PostgreSQL database for testing
+  postgres:
+    image: postgres:16-alpine
+    container_name: adeotek-sql-mcp-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SQL Server database for testing
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: adeotek-sql-mcp-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "StrongPass123!"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - mcp-network
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "StrongPass123!" -Q "SELECT 1" -C
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  sqlserver-data:
+
+networks:
+  mcp-network:
+    driver: bridge
