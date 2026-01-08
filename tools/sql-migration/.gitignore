@@ -1,0 +1,32 @@
+# Binaries
+sql-migration
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Environment files
+.env
+.env.local
+
+# Backup files
+backups/*.backup
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

@@ -119,6 +119,26 @@ npm start
 
 **📄 For detailed documentation**: See `/mcp-servers/adeotek-sql-mcp/CLAUDE.md`
 
+### 5. SQL Migration Tool (`/tools/sql-migration`)
+
+**Status**: ✅ Production Ready
+
+**Technology Stack**: Go 1.23+, PostgreSQL driver (lib/pq), SQL Server driver (go-mssqldb)
+
+**Purpose**: A robust command-line tool for managing SQL database migrations with built-in backup and restore capabilities.
+
+**Key Features**: Multi-database support (PostgreSQL and SQL Server), automatic migration tracking, optional backup before migrations (`--backup` flag), easy restore from latest backup (`--restore` flag), transaction-based migration application, checksum validation for migration integrity.
+
+**Quick Start**:
+```bash
+cd tools/sql-migration
+go build -o sql-migration cmd/sql-migration/main.go
+export DB_NAME=mydb DB_USER=postgres DB_PASSWORD=secret
+./sql-migration --backup
+```
+
+**📄 For detailed documentation**: See `/tools/sql-migration/CLAUDE.md`
+
 ## Development Guidelines
 
 ### Adding a New Agent

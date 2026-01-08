@@ -66,6 +66,34 @@ docker-compose up -d
 
 ---
 
+### SQL Migration Tool
+
+**Location**: [`/tools/sql-migration`](./tools/sql-migration)
+**Language**: Go 1.23+
+**Status**: ✅ Ready to use
+
+A robust command-line tool for managing SQL database migrations with built-in backup and restore capabilities.
+
+**Features**:
+- 🗄️ **Multi-Database Support**: PostgreSQL and SQL Server
+- 📦 **Automatic Backup**: Optional backup before applying migrations
+- ♻️ **Easy Restore**: Restore from latest backup with single flag
+- 🔒 **Safe Migrations**: Transaction-based application
+- 📊 **Migration Tracking**: Automatically tracks applied migrations
+- ✅ **Checksum Validation**: Ensures migration integrity
+
+**Quick Start**:
+```bash
+cd tools/sql-migration
+go build -o sql-migration cmd/sql-migration/main.go
+export DB_NAME=mydb DB_USER=postgres DB_PASSWORD=secret
+./sql-migration --backup
+```
+
+[Read full documentation →](./tools/sql-migration/README.md)
+
+---
+
 ## 🎯 Quick Start
 
 ### Prerequisites
@@ -98,7 +126,8 @@ adeotek-ai-tools/
 │   └── http-agent/      # HTTP request agent with AI analysis
 ├── mcp-servers/         # Model Context Protocol servers
 │   └── postgres-mcp/    # PostgreSQL MCP server with AI query generation
-├── tools/               # Additional AI tools (planned)
+├── tools/               # Utility tools and helpers
+│   └── sql-migration/   # Database migration tool with backup/restore
 ├── README.md           # This file
 ├── CLAUDE.md           # Detailed context for Claude AI
 └── LICENSE             # MIT License

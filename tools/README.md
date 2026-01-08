@@ -1,6 +1,36 @@
 # AI Tools
 
-This directory will contain standalone utility tools and libraries for AI development.
+This directory contains standalone utility tools and libraries for AI development.
+
+## Available Tools
+
+### SQL Migration Tool
+
+**Location**: `sql-migration/`
+**Status**: ✅ Production Ready
+
+A robust command-line tool for managing SQL database migrations with built-in backup and restore capabilities.
+
+**Key Features**:
+- Multi-database support (PostgreSQL and SQL Server)
+- Automatic migration tracking via database table
+- Optional backup before applying migrations (`--backup` flag)
+- Easy restore from latest backup (`--restore` flag)
+- Transaction-based migration application
+- Checksum validation for migration integrity
+- Support for multiple naming conventions
+
+**Quick Start**:
+```bash
+cd sql-migration
+go build -o sql-migration cmd/sql-migration/main.go
+export DB_NAME=mydb DB_USER=postgres DB_PASSWORD=secret
+./sql-migration --backup
+```
+
+[Read full documentation →](./sql-migration/README.md)
+
+---
 
 ## Planned Tools
 
@@ -67,5 +97,4 @@ Each tool should:
 
 ---
 
-**Status**: Coming Soon
-**Last Updated**: 2024-11-04
+**Last Updated**: 2024-01-08
